@@ -1,0 +1,74 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #1d2321;
+  background: #f5f6f4;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: #f5f6f4; }
+button, input { font: inherit; letter-spacing: 0; }
+
+.settings-page { width: min(680px, calc(100% - 32px)); margin: 0 auto; padding: 54px 0 70px; }
+.settings-header { display: flex; align-items: center; gap: 12px; margin-bottom: 34px; }
+.brand-mark { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 7px; background: #155f50; color: white; font-size: 21px; font-weight: 760; }
+.settings-header h1 { margin: 0; font-size: 20px; letter-spacing: 0; }
+.settings-header p { margin: 3px 0 0; color: #6a746f; font-size: 12px; }
+
+.settings-section { padding: 24px 0; border-top: 1px solid #d5dad7; }
+.settings-section:last-of-type { border-bottom: 1px solid #d5dad7; }
+.section-heading { margin-bottom: 20px; }
+.settings-section h2 { margin: 0; font-size: 15px; letter-spacing: 0; }
+
+form label { display: block; margin-bottom: 7px; color: #3b4641; font-size: 12px; font-weight: 700; }
+.key-field { display: grid; grid-template-columns: minmax(0, 1fr) 42px; overflow: hidden; border: 1px solid #afb9b4; border-radius: 6px; background: #fff; }
+.key-field:focus-within { border-color: #237866; box-shadow: 0 0 0 3px rgba(35,120,102,.12); }
+.key-field input { min-width: 0; height: 44px; padding: 0 12px; border: 0; outline: none; color: #18201d; background: transparent; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; }
+.key-field input:disabled { color: #77807c; background: #f0f2f0; }
+.icon-button { display: grid; place-items: center; width: 42px; height: 44px; padding: 0; border: 0; border-left: 1px solid #e1e4e2; background: #f8f9f8; color: #53605b; cursor: pointer; }
+.icon-button:hover { color: #155f50; background: #eef5f2; }
+.icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.field-note { margin: 7px 0 0; color: #747d79; font-size: 11px; }
+.model-field { margin-top: 20px; }
+.model-field select {
+  width: 100%;
+  height: 42px;
+  padding: 0 36px 0 11px;
+  border: 1px solid #afb9b4;
+  border-radius: 6px;
+  outline: none;
+  background: #fff;
+  color: #1d2321;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+}
+.model-field select:focus { border-color: #237866; box-shadow: 0 0 0 3px rgba(35,120,102,.12); }
+.model-field select:disabled { color: #858d89; background: #ecefed; cursor: not-allowed; }
+
+.form-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
+.form-actions button { min-height: 36px; padding: 7px 13px; border-radius: 5px; font-size: 12px; font-weight: 650; cursor: pointer; }
+.primary-button { border: 1px solid #155f50; background: #155f50; color: white; }
+.primary-button:hover { background: #0f5144; }
+.secondary-button { border: 1px solid #aeb8b3; background: #fff; color: #313d38; }
+.secondary-button:hover { border-color: #237866; color: #155f50; }
+.danger-button { margin-left: auto; border: 1px solid transparent; background: transparent; color: #9f2d22; }
+.danger-button:hover { border-color: #e9b7b0; background: #fff0ee; }
+.form-actions button:disabled { opacity: .55; cursor: not-allowed; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid #237866; outline-offset: 2px; }
+.status-message { min-height: 20px; margin: 12px 0 0; color: #256f60; font-size: 12px; }
+.status-message.error { color: #a32f24; }
+
+.compact h2 { margin-bottom: 14px; }
+dl { margin: 0; }
+dl div { display: grid; grid-template-columns: 145px minmax(0, 1fr); gap: 18px; padding: 9px 0; border-top: 1px solid #e2e5e3; font-size: 12px; }
+dt { color: #4c5752; font-weight: 650; }
+dd { margin: 0; color: #6d7672; }
+.external-link { display: inline-block; margin-top: 18px; color: #215c84; font-size: 12px; text-decoration: none; }
+.external-link:hover { text-decoration: underline; }
+
+@media (max-width: 520px) {
+  .settings-page { width: min(100% - 24px, 680px); padding-top: 28px; }
+  .danger-button { margin-left: 0; }
+  dl div { grid-template-columns: 1fr; gap: 4px; }
+}

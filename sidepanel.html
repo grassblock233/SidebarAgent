@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepSeek 侧边栏</title>
+    <link rel="icon" href="assets/icon-32.png">
+    <link rel="stylesheet" href="sidepanel.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <div id="setupNotice" class="setup-notice" hidden>
+        <span id="setupNoticeText">尚未配置 DeepSeek API Key</span>
+        <button id="setupButton" type="button">去设置</button>
+      </div>
+
+      <div id="sourceDock" class="source-dock" hidden>
+        <section id="sourcePanel" class="source-panel" aria-label="选中的网页内容">
+          <div class="source-heading-row">
+            <div class="source-heading">
+              <span class="source-label">来源</span>
+              <a id="sourceLink" href="#" target="_blank" rel="noreferrer"></a>
+            </div>
+            <button id="toggleSourceButton" class="pin-button" type="button" title="固定展开" aria-label="固定展开" aria-pressed="false">
+              <svg class="pin-icon pin-icon-off" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 17v5M5 3l14 14M9 4h6l-1 5 4 4H9l-4-4 2.1-2.1"/></svg>
+              <svg class="pin-icon pin-icon-on" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 17v5M5 3h14M9 3v5l-4 5h14l-4-5V3"/></svg>
+            </button>
+          </div>
+          <p id="sourceText" class="source-text"></p>
+          <p id="truncatedNotice" class="truncated-notice" hidden></p>
+        </section>
+      </div>
+
+      <section id="quickActions" class="quick-actions" hidden aria-label="快捷操作">
+        <button type="button" data-action="explain">解释</button>
+        <button type="button" data-action="summarize">总结</button>
+        <button type="button" data-action="translate">翻译</button>
+        <button type="button" data-action="keyPoints">提取要点</button>
+        <button type="button" data-action="credibility">判断可信度</button>
+      </section>
+
+      <main id="content" class="content">
+        <div id="emptyState" class="empty-state">
+          <div class="empty-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M8 3h8l5 5v8l-5 5H8l-5-5V8l5-5Z"/><path d="m9 12 2 2 4-5"/></svg>
+          </div>
+          <h1>暂无分析内容</h1>
+          <p>等待网页选区</p>
+        </div>
+        <div id="messages" class="messages" aria-live="polite"></div>
+        <div id="errorPanel" class="error-panel" hidden role="alert">
+          <span id="errorText"></span>
+          <button id="retryButton" type="button">重试</button>
+        </div>
+      </main>
+
+      <footer class="composer-dock">
+        <div class="composer-surface">
+          <div class="composer">
+            <textarea id="questionInput" rows="1" maxlength="4000" placeholder="针对所选内容提问" disabled></textarea>
+            <button id="actionButton" class="action-button" type="button" title="发送" aria-label="发送" disabled>
+              <span class="action-icon action-icon-send" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="m22 2-7 20-4-9-9-4 20-7Z"/><path d="M22 2 11 13"/></svg>
+              </span>
+              <span class="action-icon action-icon-stop" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12"/></svg>
+              </span>
+            </button>
+          </div>
+          <div class="composer-meta">
+            <div class="composer-context">
+              <button id="modelButton" class="model-button" type="button" title="打开模型设置">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M7 4v6m10 4v6m-13-3h16"/></svg>
+                <span id="selectedModelLabel">未配置模型</span>
+              </button>
+              <span id="statusText" role="status"></span>
+            </div>
+            <div class="composer-tools">
+              <span id="characterCount">0 / 4000</span>
+              <button id="clearButton" class="composer-tool-button" type="button" title="清除当前对话" aria-label="清除当前对话">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m5 4v6m4-6v6"/></svg>
+              </button>
+              <button id="settingsButton" class="composer-tool-button" type="button" title="打开设置" aria-label="打开设置">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.08A1.7 1.7 0 0 0 8.94 19.4a1.7 1.7 0 0 0-1.88.34l-.06-.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.52-1H3v-4h.08A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06L7.03 4.2l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.52V3h4v.08A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9a1.7 1.7 0 0 0 1.52 1H21v4h-.08A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "name": "deepseek-sidepanel",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate-icons": "node scripts/generate-icons.mjs",
+    "check": "node --check background.js && node --check sidepanel.js && node --check options.js && node --check shared/constants.js && node --check shared/storage.js && node --check shared/deepseek-client.js && node --check shared/ui-state.js",
+    "test": "node --test"
+  }
+}
