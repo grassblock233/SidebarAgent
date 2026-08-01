@@ -1,21 +1,21 @@
-import { API_URL, MODELS_API_URL } from "./constants.js";
+import { buildApiUrl } from "./providers.js";
 
-export class DeepSeekError extends Error {
+export class ProviderError extends Error {
   constructor(message, { status = 0, code = "unknown" } = {}) {
     super(message);
-    this.name = "DeepSeekError";
+    this.name = "ProviderError";
     this.status = status;
     this.code = code;
   }
 }
 
-export function describeApiError(status, apiMessage = "") {
-  if (status === 401) return "API Key 无效，请在设置中检查后重试。";
-  if (status === 402) return "DeepSeek 账户余额不足或计费状态异常。";
-  if (status === 429) return "请求过于频繁，请稍后再试。";
-  if (status >= 500) return "DeepSeek 服务暂时不可用，请稍后再试。";
-  if (apiMessage) return `DeepSeek 请求失败：${apiMessage}`;
-  return `DeepSeek 请求失败（HTTP ${status}）。`;
+export function describeApiError(providerName, status, apiMessage = "") {
+  if (status === 401 || status === 403) return `${providerName} API Key 无效或无权访问该资源。`;
+  if (status === 402) return `${providerName} 账户余额不足或计费状态异常。`;
+  if (status === 429) return `${providerName} 请求过于频繁，请稍后再试。`;
+  if (status >= 500) return `${providerName} 服务暂时不可用，请稍后再试。`;
+  if (apiMessage) return `${providerName} 请求失败：${apiMessage}`;
+  return `${providerName} 请求失败（HTTP ${status}）。`;
 }
 
 async function readError(response) {
@@ -56,7 +56,6 @@ export async function* readSseData(stream) {
       } else if (line.startsWith("data:")) {
         eventData.push(line.slice(5).trimStart());
       }
-
       newlineIndex = buffer.indexOf("\n");
     }
 
@@ -68,24 +67,22 @@ export async function* readSseData(stream) {
   if (finalData !== null) yield finalData;
 }
 
-export async function fetchModels(apiKey, signal) {
+export async function fetchModels({ provider, apiKey, signal }) {
   let response;
   try {
-    response = await fetch(MODELS_API_URL, {
+    response = await fetch(buildApiUrl(provider.baseUrl, provider.modelsPath), {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${apiKey}`
-      },
+      headers: { Authorization: `Bearer ${apiKey}` },
       signal
     });
   } catch (error) {
     if (error.name === "AbortError") throw error;
-    throw new DeepSeekError("无法连接 DeepSeek，请检查网络后重试。", { code: "network" });
+    throw new ProviderError(`无法连接${provider.name}，请检查网络和接口地址。`, { code: "network" });
   }
 
   if (!response.ok) {
     const apiMessage = await readError(response);
-    throw new DeepSeekError(describeApiError(response.status, apiMessage), {
+    throw new ProviderError(describeApiError(provider.name, response.status, apiMessage), {
       status: response.status,
       code: "api"
     });
@@ -95,11 +92,11 @@ export async function fetchModels(apiKey, signal) {
   try {
     payload = await response.json();
   } catch {
-    throw new DeepSeekError("DeepSeek 返回了无法识别的模型列表。", { code: "parse" });
+    throw new ProviderError(`${provider.name}返回了无法识别的模型列表。`, { code: "parse" });
   }
 
   if (!Array.isArray(payload?.data)) {
-    throw new DeepSeekError("DeepSeek 返回的模型列表格式不正确。", { code: "parse" });
+    throw new ProviderError(`${provider.name}返回的模型列表格式不正确。`, { code: "parse" });
   }
 
   const models = [...new Set(
@@ -109,20 +106,17 @@ export async function fetchModels(apiKey, signal) {
   )].sort((left, right) => left.localeCompare(right, "en"));
 
   if (!models.length) {
-    throw new DeepSeekError("DeepSeek 没有返回可用模型。", { code: "empty-models" });
+    throw new ProviderError(`${provider.name}没有返回可用模型，可以改用手动模型 ID。`, { code: "empty-models" });
   }
-
   return models;
 }
 
-export async function streamChat({ apiKey, model, messages, signal, onDelta }) {
-  if (!model) {
-    throw new DeepSeekError("尚未选择 DeepSeek 模型。", { code: "configuration" });
-  }
+export async function streamChat({ provider, apiKey, model, messages, signal, onDelta }) {
+  if (!model) throw new ProviderError(`尚未选择${provider.name}模型。`, { code: "configuration" });
 
   let response;
   try {
-    response = await fetch(API_URL, {
+    response = await fetch(buildApiUrl(provider.baseUrl, provider.chatPath), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -139,20 +133,17 @@ export async function streamChat({ apiKey, model, messages, signal, onDelta }) {
     });
   } catch (error) {
     if (error.name === "AbortError") throw error;
-    throw new DeepSeekError("无法连接 DeepSeek，请检查网络后重试。", { code: "network" });
+    throw new ProviderError(`无法连接${provider.name}，请检查网络和接口地址。`, { code: "network" });
   }
 
   if (!response.ok) {
     const apiMessage = await readError(response);
-    throw new DeepSeekError(describeApiError(response.status, apiMessage), {
+    throw new ProviderError(describeApiError(provider.name, response.status, apiMessage), {
       status: response.status,
       code: "api"
     });
   }
-
-  if (!response.body) {
-    throw new DeepSeekError("DeepSeek 返回了空响应。", { code: "empty" });
-  }
+  if (!response.body) throw new ProviderError(`${provider.name}返回了空响应。`, { code: "empty" });
 
   for await (const data of readSseData(response.body)) {
     if (data === "[DONE]") break;
@@ -161,7 +152,7 @@ export async function streamChat({ apiKey, model, messages, signal, onDelta }) {
       const delta = event?.choices?.[0]?.delta?.content;
       if (delta) onDelta(delta);
     } catch {
-      throw new DeepSeekError("无法解析 DeepSeek 返回的数据。", { code: "parse" });
+      throw new ProviderError(`无法解析${provider.name}返回的数据。`, { code: "parse" });
     }
   }
 }

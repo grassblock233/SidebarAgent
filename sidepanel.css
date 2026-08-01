@@ -7,6 +7,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
 button, textarea { font: inherit; }
@@ -25,7 +26,7 @@ body { background: #f6f7f5; }
 }
 
 button:focus-visible, textarea:focus-visible { outline: 2px solid #237866; outline-offset: 2px; }
-.pin-button svg, .action-icon svg, .model-button svg, .composer-tool-button svg {
+.pin-button svg, .action-icon svg, .model-select-control svg, .composer-tool-button svg {
   width: 18px;
   height: 18px;
   fill: none;
@@ -238,21 +239,40 @@ button:focus-visible, textarea:focus-visible { outline: 2px solid #237866; outli
 .action-button.is-generating .action-icon-stop { opacity: 1; transform: scale(1) rotate(0); }
 .composer-meta { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; min-height: 23px; gap: 6px; padding-top: 2px; color: #7b8480; font-size: 10px; }
 .composer-context { display: flex; align-items: center; min-width: 0; gap: 6px; }
-.model-button {
+.model-select-control {
   display: flex;
   align-items: center;
+  flex: 0 1 56%;
   min-width: 0;
   max-width: 56%;
-  padding: 2px 4px;
-  border: 0;
+  height: 22px;
+  overflow: hidden;
+  padding-left: 4px;
+  border: 1px solid transparent;
   border-radius: 4px;
   background: transparent;
   color: #53605b;
+}
+.model-select-control:hover { background: #edf3f0; color: #176b59; }
+.model-select-control:focus-within { border-color: #8cbcaf; background: #fff; }
+.model-select-control svg { width: 12px; height: 12px; flex: 0 0 12px; }
+.model-select-control select {
+  flex: 1 1 auto;
+  width: 0;
+  min-width: 0;
+  max-width: 100%;
+  height: 20px;
+  padding: 0 16px 0 3px;
+  overflow: hidden;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 10px;
+  text-overflow: ellipsis;
   cursor: pointer;
 }
-.model-button:hover { background: #edf3f0; color: #176b59; }
-.model-button svg { width: 12px; height: 12px; flex: 0 0 12px; margin-right: 3px; }
-.model-button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.model-select-control select:disabled { color: #7b8480; cursor: default; opacity: 1; }
 #statusText { min-width: 0; overflow: hidden; color: #256f60; text-overflow: ellipsis; white-space: nowrap; }
 #characterCount { white-space: nowrap; }
 .composer-tools { display: flex; align-items: center; justify-content: flex-end; gap: 2px; }
@@ -274,7 +294,7 @@ button:focus-visible, textarea:focus-visible { outline: 2px solid #237866; outli
 
 @media (max-width: 340px) {
   .content, .source-panel, .quick-actions, .composer-surface { padding-left: 9px; padding-right: 9px; }
-  .model-button { max-width: 48%; }
+  .model-select-control { max-width: 48%; }
   #characterCount { display: none; }
 }
 

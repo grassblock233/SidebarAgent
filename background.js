@@ -8,7 +8,7 @@ async function createContextMenu() {
   await chrome.contextMenus.removeAll();
   chrome.contextMenus.create({
     id: MENU_ID,
-    title: "用 DeepSeek 分析所选内容",
+    title: "用 SidebarAgent 分析所选内容",
     contexts: ["selection"]
   });
 }

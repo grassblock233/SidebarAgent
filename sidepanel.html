@@ -10,7 +10,7 @@
   <body>
     <div class="app-shell">
       <div id="setupNotice" class="setup-notice" hidden>
-        <span id="setupNoticeText">尚未配置 DeepSeek API Key</span>
+        <span id="setupNoticeText">尚未配置 AI 提供商</span>
         <button id="setupButton" type="button">去设置</button>
       </div>
 
@@ -69,10 +69,12 @@
           </div>
           <div class="composer-meta">
             <div class="composer-context">
-              <button id="modelButton" class="model-button" type="button" title="打开模型设置">
+              <div class="model-select-control">
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M7 4v6m10 4v6m-13-3h16"/></svg>
-                <span id="selectedModelLabel">未配置模型</span>
-              </button>
+                <select id="modelSelect" aria-label="选择当前模型" disabled>
+                  <option value="">未配置 AI 提供商</option>
+                </select>
+              </div>
               <span id="statusText" role="status"></span>
             </div>
             <div class="composer-tools">

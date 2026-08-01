@@ -1,20 +1,25 @@
 import {
   MAX_CONTEXT_CHARS,
+  DEFAULT_PROVIDER_ID,
   PENDING_SELECTION_KEY,
   QUICK_ACTIONS,
   REQUEST_TIMEOUT_MS,
   SETTINGS_KEY,
   SYSTEM_PROMPT
 } from "./shared/constants.js";
-import { DeepSeekError, streamChat } from "./shared/deepseek-client.js";
+import { ProviderError, streamChat } from "./shared/openai-compatible-client.js";
+import { resolveProvider } from "./shared/providers.js";
 import {
   clearConversationSession,
   getConversationSession,
   getPendingSelection,
   getSettings,
-  isConfigurationValid,
+  getEffectiveModel,
+  isProviderConfigurationValid,
   normalizeSettings,
-  saveConversationSession
+  saveConversationSession,
+  saveSettings,
+  selectAvailableModel
 } from "./shared/storage.js";
 import { getActionButtonState } from "./shared/ui-state.js";
 
@@ -23,7 +28,6 @@ const CONFIGURATION_ERROR = "请先配置 API Key 并选择一个可用模型。
 const elements = {
   clearButton: document.querySelector("#clearButton"),
   settingsButton: document.querySelector("#settingsButton"),
-  selectedModelLabel: document.querySelector("#selectedModelLabel"),
   setupNotice: document.querySelector("#setupNotice"),
   setupNoticeText: document.querySelector("#setupNoticeText"),
   setupButton: document.querySelector("#setupButton"),
@@ -42,7 +46,7 @@ const elements = {
   retryButton: document.querySelector("#retryButton"),
   questionInput: document.querySelector("#questionInput"),
   actionButton: document.querySelector("#actionButton"),
-  modelButton: document.querySelector("#modelButton"),
+  modelSelect: document.querySelector("#modelSelect"),
   statusText: document.querySelector("#statusText"),
   characterCount: document.querySelector("#characterCount")
 };
@@ -51,8 +55,14 @@ const state = {
   source: null,
   messages: [],
   sourcePinned: false,
+  activeProviderId: DEFAULT_PROVIDER_ID,
+  providerName: "DeepSeek",
   hasApiKey: false,
   selectedModel: "",
+  availableModels: [],
+  modelSelectionMode: "list",
+  modelSwitching: false,
+  requestProviderName: "",
   busy: false,
   submitting: false,
   error: "",
@@ -204,7 +214,7 @@ function renderMessages() {
     heading.className = "message-heading";
     const role = document.createElement("span");
     role.className = "message-role";
-    role.textContent = message.role === "user" ? "你" : "DeepSeek";
+    role.textContent = message.role === "user" ? "你" : message.providerName || "AI";
     heading.append(role);
 
     if (message.content) {
@@ -257,7 +267,7 @@ function renderSource() {
   const hasSource = Boolean(state.source);
   elements.sourceDock.hidden = !hasSource;
   elements.quickActions.hidden = !hasSource;
-  elements.emptyState.hidden = hasSource;
+  elements.emptyState.hidden = hasSource || state.messages.length > 0;
   if (!hasSource) return;
 
   elements.sourceLink.textContent = state.source.title;
@@ -290,13 +300,9 @@ function renderControls() {
   });
   elements.setupNotice.hidden = configured;
   elements.setupNoticeText.textContent = state.hasApiKey
-    ? "尚未选择可用的 DeepSeek 模型"
-    : "尚未配置 DeepSeek API Key";
-  elements.selectedModelLabel.textContent = state.selectedModel || "未配置模型";
-  elements.selectedModelLabel.title = state.selectedModel || "";
-  elements.modelButton.title = state.selectedModel
-    ? `当前模型：${state.selectedModel}；点击打开设置`
-    : "配置 DeepSeek 模型";
+    ? `尚未选择可用的${state.providerName}模型`
+    : "尚未配置 AI 提供商";
+  renderModelSelect();
   elements.questionInput.disabled = !state.source;
   elements.clearButton.disabled = state.submitting;
   elements.actionButton.disabled = actionState.disabled;
@@ -305,7 +311,7 @@ function renderControls() {
   elements.actionButton.setAttribute("aria-label", elements.actionButton.title);
   elements.actionButton.setAttribute("aria-pressed", String(state.busy));
   elements.statusText.textContent = state.busy
-    ? "DeepSeek 正在回答"
+    ? `${state.requestProviderName || state.providerName}正在回答`
     : preparing
       ? "正在准备请求"
       : state.status;
@@ -400,8 +406,7 @@ async function runAssistantReply() {
     render();
     return;
   }
-  state.hasApiKey = Boolean(settings.apiKey);
-  state.selectedModel = isConfigurationValid(settings) ? settings.selectedModel : "";
+  applySettings(settings);
   if (!state.hasApiKey || !state.selectedModel) {
     state.submitting = false;
     state.error = CONFIGURATION_ERROR;
@@ -409,12 +414,18 @@ async function runAssistantReply() {
     return;
   }
 
-  const assistantMessage = { id: createId(), role: "assistant", content: "" };
+  const providerId = settings.activeProviderId;
+  const providerConfig = settings.providers[providerId];
+  const provider = resolveProvider(providerId, providerConfig);
+  const model = getEffectiveModel(providerConfig);
+  const requestMessages = buildApiMessages();
+  const assistantMessage = { id: createId(), role: "assistant", content: "", providerName: provider.name };
   state.messages.push(assistantMessage);
   state.error = "";
   state.status = "";
   state.submitting = false;
   state.busy = true;
+  state.requestProviderName = provider.name;
   state.stopReason = "";
   state.controller = new AbortController();
   state.timeoutId = setTimeout(() => stopActiveRequest("timeout"), REQUEST_TIMEOUT_MS);
@@ -422,9 +433,10 @@ async function runAssistantReply() {
 
   try {
     await streamChat({
-      apiKey: settings.apiKey,
-      model: settings.selectedModel,
-      messages: buildApiMessages(),
+      provider,
+      apiKey: providerConfig.apiKey,
+      model,
+      messages: requestMessages,
       signal: state.controller.signal,
       onDelta(delta) {
         assistantMessage.content += delta;
@@ -432,14 +444,14 @@ async function runAssistantReply() {
       }
     });
     if (!assistantMessage.content) {
-      throw new DeepSeekError("DeepSeek 没有返回可显示的内容。", { code: "empty" });
+      throw new ProviderError(`${provider.name}没有返回可显示的内容。`, { code: "empty" });
     }
   } catch (error) {
     if (error.name === "AbortError") {
       if (state.stopReason === "timeout") state.error = "请求超过 120 秒，已自动停止。";
       else if (state.stopReason === "user") state.status = "已停止生成";
     } else {
-      state.error = error instanceof DeepSeekError ? error.message : "请求失败，请稍后重试。";
+      state.error = error instanceof ProviderError ? error.message : "请求失败，请稍后重试。";
     }
 
     if (!assistantMessage.content) {
@@ -450,6 +462,7 @@ async function runAssistantReply() {
     state.timeoutId = null;
     state.controller = null;
     state.busy = false;
+    state.requestProviderName = "";
     await persistSession();
     render();
   }
@@ -508,6 +521,88 @@ function openSettings() {
   chrome.runtime.openOptionsPage();
 }
 
+function renderModelSelect() {
+  const select = elements.modelSelect;
+  const isListMode = state.modelSelectionMode === "list";
+  const currentModelIsAvailable = state.availableModels.includes(state.selectedModel);
+  const canSelect = state.hasApiKey && isListMode && currentModelIsAvailable &&
+    !state.modelSwitching && !state.submitting;
+  const displayText = !state.hasApiKey
+    ? "未配置 AI 提供商"
+    : state.selectedModel
+      ? `${state.providerName} · ${state.selectedModel}`
+      : `${state.providerName} · 未配置模型`;
+
+  select.replaceChildren();
+  if (canSelect) {
+    const group = document.createElement("optgroup");
+    group.label = state.providerName;
+    for (const model of state.availableModels) {
+      const option = document.createElement("option");
+      option.value = model;
+      option.textContent = model;
+      group.append(option);
+    }
+    select.append(group);
+    select.value = state.selectedModel;
+  } else {
+    const option = document.createElement("option");
+    option.value = state.selectedModel;
+    option.textContent = displayText;
+    select.append(option);
+  }
+  select.disabled = !canSelect;
+  select.setAttribute("aria-label", `选择${state.providerName}模型`);
+  select.title = canSelect
+    ? `${state.providerName}：${state.selectedModel}；选择下次请求使用的模型`
+    : isListMode ? displayText : `${displayText}；手动模型请在设置页修改`;
+}
+
+async function changeSelectedModel(model) {
+  const providerId = state.activeProviderId;
+  const previousModel = state.selectedModel;
+  if (!model || model === previousModel || state.modelSwitching) return;
+  state.modelSwitching = true;
+  state.error = "";
+  state.status = "";
+  let restorePreviousModel = true;
+  renderControls();
+  try {
+    const latestSettings = await getSettings();
+    if (latestSettings.activeProviderId !== providerId) {
+      applySettings(latestSettings);
+      restorePreviousModel = false;
+      throw new Error("当前提供商已变化，请重新选择模型。");
+    }
+    const updatedSettings = selectAvailableModel(latestSettings, providerId, model);
+    await saveSettings(updatedSettings);
+    applySettings(updatedSettings);
+    state.status = `已切换模型：${model}`;
+  } catch (error) {
+    state.status = `切换模型失败：${error.message || "请重试。"}`;
+    if (restorePreviousModel) state.selectedModel = previousModel;
+  } finally {
+    state.modelSwitching = false;
+    renderControls();
+  }
+}
+
+function applySettings(settings) {
+  const providerId = settings.activeProviderId;
+  const providerConfig = settings.providers[providerId];
+  const provider = resolveProvider(providerId, providerConfig);
+  state.activeProviderId = providerId;
+  state.providerName = provider?.name || "AI";
+  state.hasApiKey = Boolean(providerConfig?.apiKey);
+  state.availableModels = providerConfig?.modelSelectionMode === "list"
+    ? providerConfig.availableModels
+    : [];
+  state.modelSelectionMode = providerConfig?.modelSelectionMode || "list";
+  state.selectedModel = provider && isProviderConfigurationValid(providerConfig, providerId)
+    ? getEffectiveModel(providerConfig)
+    : "";
+}
+
 elements.settingsButton.addEventListener("click", openSettings);
 elements.setupButton.addEventListener("click", openSettings);
 elements.clearButton.addEventListener("click", clearCurrentSession);
@@ -519,7 +614,7 @@ elements.actionButton.addEventListener("click", () => {
   if (state.busy) stopActiveRequest("user");
   else submitQuestion(elements.questionInput.value);
 });
-elements.modelButton.addEventListener("click", openSettings);
+elements.modelSelect.addEventListener("change", () => changeSelectedModel(elements.modelSelect.value));
 elements.retryButton.addEventListener("click", retryLastReply);
 elements.questionInput.addEventListener("input", () => {
   resizeComposer();
@@ -548,8 +643,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
   }
   if (areaName === "local" && changes[SETTINGS_KEY]) {
     const settings = normalizeSettings(changes[SETTINGS_KEY].newValue);
-    state.hasApiKey = Boolean(settings.apiKey);
-    state.selectedModel = isConfigurationValid(settings) ? settings.selectedModel : "";
+    applySettings(settings);
     if (state.selectedModel && state.error === CONFIGURATION_ERROR) state.error = "";
     renderControls();
   }
@@ -562,8 +656,7 @@ async function initialize() {
     getPendingSelection()
   ]);
 
-  state.hasApiKey = Boolean(settings.apiKey);
-  state.selectedModel = isConfigurationValid(settings) ? settings.selectedModel : "";
+  applySettings(settings);
   if (session?.source) {
     state.source = session.source;
     state.messages = Array.isArray(session.messages) ? session.messages : [];

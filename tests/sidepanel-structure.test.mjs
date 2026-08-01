@@ -11,8 +11,14 @@ test("side panel uses one action button and no internal brand header", () => {
   assert.doesNotMatch(html, /class="app-header"|class="brand"/);
   assert.match(html, /id="sourceDock"/);
   assert.match(html, /class="composer-dock"/);
-  assert.match(html, /id="modelButton"/);
+  assert.match(html, /id="modelSelect"/);
+  assert.doesNotMatch(html, /id="modelButton"/);
   assert.match(html, /class="composer-tools"[\s\S]*id="clearButton"[\s\S]*id="settingsButton"/);
+});
+
+test("unconfigured state uses provider-neutral copy", () => {
+  assert.doesNotMatch(html, /尚未配置 DeepSeek API Key/);
+  assert.match(fs.readFileSync(new URL("../sidepanel.js", import.meta.url), "utf8"), /尚未配置 AI 提供商/);
 });
 
 test("viewport, conversation and composer use fixed shell constraints", () => {
@@ -29,4 +35,10 @@ test("source overlay and reduced-motion fallback remain available", () => {
   assert.match(css, /\.source-dock\.is-pinned \.source-panel/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /\.action-button\.is-generating/);
+});
+
+test("hidden side panel states cannot be overridden by component display rules", () => {
+  const js = fs.readFileSync(new URL("../sidepanel.js", import.meta.url), "utf8");
+  assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
+  assert.match(js, /emptyState\.hidden = hasSource \|\| state\.messages\.length > 0/);
 });

@@ -11,39 +11,68 @@
     <main class="settings-page">
       <header class="settings-header">
         <span class="brand-mark" aria-hidden="true">A</span>
-        <div>
-          <h1>SidebarAgent</h1>
-          <p>设置</p>
-        </div>
+        <div><h1>SidebarAgent</h1><p>提供商设置</p></div>
       </header>
 
-      <section class="settings-section" aria-labelledby="apiHeading">
-        <div class="section-heading">
-          <h2 id="apiHeading">DeepSeek API</h2>
+      <section class="settings-section" aria-labelledby="providerHeading">
+        <div class="section-heading provider-heading-row">
+          <h2 id="providerHeading">AI 提供商</h2>
+          <span id="activeProviderBadge" class="active-badge" hidden>当前使用</span>
         </div>
 
+        <div class="provider-picker">
+          <select id="providerSelect" aria-label="选择提供商"></select>
+          <button id="deleteCustomButton" class="danger-button compact-button" type="button" hidden>删除</button>
+        </div>
+        <p id="providerEndpoint" class="endpoint-text"></p>
+      </section>
+
+      <section class="settings-section" aria-labelledby="configurationHeading">
+        <h2 id="configurationHeading">API 配置</h2>
         <form id="settingsForm">
+          <div id="customFields" class="custom-fields" hidden>
+            <label for="customName">提供商名称</label>
+            <input id="customName" class="text-input" type="text" maxlength="60" placeholder="我的兼容接口">
+
+            <label for="baseUrl">Base URL</label>
+            <input id="baseUrl" class="text-input code-input" type="url" spellcheck="false" placeholder="https://example.com/v1">
+
+            <div class="path-grid">
+              <div><label for="modelsPath">Models Path</label><input id="modelsPath" class="text-input code-input" type="text" spellcheck="false" placeholder="/models"></div>
+              <div><label for="chatPath">Chat Path</label><input id="chatPath" class="text-input code-input" type="text" spellcheck="false" placeholder="/chat/completions"></div>
+            </div>
+
+            <label class="checkbox-row" for="supportsModelDiscovery">
+              <input id="supportsModelDiscovery" type="checkbox" checked>
+              <span>接口支持获取模型列表</span>
+            </label>
+          </div>
+
           <label for="apiKey">API Key</label>
           <div class="key-field">
-            <input id="apiKey" name="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="sk-...">
+            <input id="apiKey" name="apiKey" type="password" autocomplete="off" spellcheck="false" placeholder="输入 API Key">
             <button id="toggleVisibility" class="icon-button" type="button" title="显示 API Key" aria-label="显示 API Key">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
-          <p class="field-note">密钥保存在此浏览器的插件本地存储中。</p>
+          <p class="field-note">密钥仅保存在此浏览器的插件本地存储中。</p>
 
-          <div class="model-field">
+          <div class="model-heading-row">
             <label for="modelSelect">模型</label>
-            <select id="modelSelect" disabled>
-              <option value="">请先获取模型列表</option>
-            </select>
-            <p id="modelMeta" class="field-note"></p>
+            <label class="checkbox-row inline-toggle" for="manualModelToggle">
+              <input id="manualModelToggle" type="checkbox">
+              <span>手动输入</span>
+            </label>
           </div>
+          <select id="modelSelect" class="model-select" disabled><option value="">请先获取模型列表</option></select>
+          <input id="manualModelInput" class="text-input code-input" type="text" spellcheck="false" placeholder="模型 ID 或推理接入点 ID" hidden>
+          <p id="modelMeta" class="field-note"></p>
 
           <div class="form-actions">
             <button id="fetchModelsButton" class="secondary-button" type="button">连接并获取模型</button>
             <button id="saveButton" class="primary-button" type="submit" disabled>保存配置</button>
-            <button id="clearKeyButton" class="danger-button" type="button">清除密钥</button>
+            <button id="activateButton" class="secondary-button" type="button" disabled>设为当前</button>
+            <button id="clearProviderButton" class="danger-button" type="button">清除配置</button>
           </div>
           <p id="statusMessage" class="status-message" role="status" aria-live="polite"></p>
         </form>
@@ -52,13 +81,11 @@
       <section class="settings-section compact" aria-labelledby="privacyHeading">
         <h2 id="privacyHeading">数据</h2>
         <dl>
-          <div><dt>发送至 DeepSeek</dt><dd>选中文字、网页标题、网址和对话内容</dd></div>
-          <div><dt>本地保存</dt><dd>API Key 与当前浏览器会话</dd></div>
-          <div><dt>其他服务</dt><dd>不发送</dd></div>
+          <div><dt>发送内容</dt><dd>选中文字、网页标题、网址和对话内容</dd></div>
+          <div><dt>本地保存</dt><dd>提供商配置、API Key 和当前浏览器会话</dd></div>
+          <div><dt>自定义接口</dt><dd>首次使用域名时由浏览器请求访问权限</dd></div>
         </dl>
       </section>
-
-      <a class="external-link" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noreferrer">管理 DeepSeek API Key</a>
     </main>
     <script type="module" src="options.js"></script>
   </body>

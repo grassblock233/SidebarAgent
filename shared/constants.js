@@ -1,11 +1,11 @@
 export const MENU_ID = "deepseek-analyze-selection";
-export const SETTINGS_KEY = "deepseekSettings";
+export const SETTINGS_KEY = "sidebarAgentSettings";
+export const LEGACY_SETTINGS_KEY = "deepseekSettings";
 export const PENDING_SELECTION_KEY = "pendingSelection";
 export const SESSION_KEY = "conversationSession";
 
-export const API_URL = "https://api.deepseek.com/chat/completions";
-export const MODELS_API_URL = "https://api.deepseek.com/models";
-export const DEFAULT_MODEL = "deepseek-chat";
+export const SETTINGS_VERSION = 2;
+export const DEFAULT_PROVIDER_ID = "deepseek";
 export const MAX_SELECTION_CHARS = 12_000;
 export const MAX_CONTEXT_CHARS = 60_000;
 export const REQUEST_TIMEOUT_MS = 120_000;

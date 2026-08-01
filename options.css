@@ -20,18 +20,10 @@ button, input { font: inherit; letter-spacing: 0; }
 .settings-section:last-of-type { border-bottom: 1px solid #d5dad7; }
 .section-heading { margin-bottom: 20px; }
 .settings-section h2 { margin: 0; font-size: 15px; letter-spacing: 0; }
-
-form label { display: block; margin-bottom: 7px; color: #3b4641; font-size: 12px; font-weight: 700; }
-.key-field { display: grid; grid-template-columns: minmax(0, 1fr) 42px; overflow: hidden; border: 1px solid #afb9b4; border-radius: 6px; background: #fff; }
-.key-field:focus-within { border-color: #237866; box-shadow: 0 0 0 3px rgba(35,120,102,.12); }
-.key-field input { min-width: 0; height: 44px; padding: 0 12px; border: 0; outline: none; color: #18201d; background: transparent; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; }
-.key-field input:disabled { color: #77807c; background: #f0f2f0; }
-.icon-button { display: grid; place-items: center; width: 42px; height: 44px; padding: 0; border: 0; border-left: 1px solid #e1e4e2; background: #f8f9f8; color: #53605b; cursor: pointer; }
-.icon-button:hover { color: #155f50; background: #eef5f2; }
-.icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.field-note { margin: 7px 0 0; color: #747d79; font-size: 11px; }
-.model-field { margin-top: 20px; }
-.model-field select {
+.provider-heading-row { display: flex; align-items: center; justify-content: space-between; }
+.active-badge { padding: 3px 7px; border-radius: 4px; background: #e5f3ed; color: #176b59; font-size: 10px; font-weight: 700; }
+.provider-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.provider-picker select, .model-select {
   width: 100%;
   height: 42px;
   padding: 0 36px 0 11px;
@@ -40,11 +32,47 @@ form label { display: block; margin-bottom: 7px; color: #3b4641; font-size: 12px
   outline: none;
   background: #fff;
   color: #1d2321;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   font-size: 12px;
 }
-.model-field select:focus { border-color: #237866; box-shadow: 0 0 0 3px rgba(35,120,102,.12); }
-.model-field select:disabled { color: #858d89; background: #ecefed; cursor: not-allowed; }
+.provider-picker select:focus, .model-select:focus { border-color: #237866; box-shadow: 0 0 0 3px rgba(35,120,102,.12); }
+.provider-picker button, .compact-button { min-height: 36px; padding: 7px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; }
+.endpoint-text { margin: 8px 0 0; overflow-wrap: anywhere; color: #747d79; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
+
+form label { display: block; margin-bottom: 7px; color: #3b4641; font-size: 12px; font-weight: 700; }
+.text-input {
+  width: 100%;
+  height: 42px;
+  padding: 0 11px;
+  border: 1px solid #afb9b4;
+  border-radius: 6px;
+  outline: none;
+  background: #fff;
+  color: #18201d;
+  font-size: 13px;
+}
+.text-input:focus { border-color: #237866; box-shadow: 0 0 0 3px rgba(35,120,102,.12); }
+.code-input { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+.custom-fields { display: grid; gap: 7px; margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #e0e4e1; }
+[hidden] { display: none !important; }
+.custom-fields label:not(:first-child) { margin-top: 7px; }
+.path-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.path-grid label { margin-top: 7px; }
+.checkbox-row { display: flex; align-items: center; gap: 7px; margin: 9px 0 0; font-weight: 500; cursor: pointer; }
+.checkbox-row input { width: 15px; height: 15px; accent-color: #176b59; }
+.key-field { display: grid; grid-template-columns: minmax(0, 1fr) 42px; overflow: hidden; border: 1px solid #afb9b4; border-radius: 6px; background: #fff; }
+.key-field:focus-within { border-color: #237866; box-shadow: 0 0 0 3px rgba(35,120,102,.12); }
+.key-field input { min-width: 0; height: 44px; padding: 0 12px; border: 0; outline: none; color: #18201d; background: transparent; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; }
+.key-field input:disabled { color: #77807c; background: #f0f2f0; }
+.icon-button { display: grid; place-items: center; width: 42px; height: 44px; padding: 0; border: 0; border-left: 1px solid #e1e4e2; background: #f8f9f8; color: #53605b; cursor: pointer; }
+.icon-button:hover { color: #155f50; background: #eef5f2; }
+.icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.field-note { margin: 7px 0 0; color: #747d79; font-size: 11px; }
+.model-heading-row { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
+.model-heading-row > label:first-child { margin: 0; }
+.inline-toggle { margin: 0; }
+.model-select { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.model-select:disabled { color: #858d89; background: #ecefed; cursor: not-allowed; }
+#manualModelInput { margin-top: 0; }
 
 .form-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 22px; }
 .form-actions button { min-height: 36px; padding: 7px 13px; border-radius: 5px; font-size: 12px; font-weight: 650; cursor: pointer; }
@@ -54,6 +82,7 @@ form label { display: block; margin-bottom: 7px; color: #3b4641; font-size: 12px
 .secondary-button:hover { border-color: #237866; color: #155f50; }
 .danger-button { margin-left: auto; border: 1px solid transparent; background: transparent; color: #9f2d22; }
 .danger-button:hover { border-color: #e9b7b0; background: #fff0ee; }
+.compact-button { margin-left: 0; }
 .form-actions button:disabled { opacity: .55; cursor: not-allowed; }
 button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid #237866; outline-offset: 2px; }
 .status-message { min-height: 20px; margin: 12px 0 0; color: #256f60; font-size: 12px; }
@@ -70,5 +99,8 @@ dd { margin: 0; color: #6d7672; }
 @media (max-width: 520px) {
   .settings-page { width: min(100% - 24px, 680px); padding-top: 28px; }
   .danger-button { margin-left: 0; }
+  .provider-picker { grid-template-columns: 1fr auto; }
+  .provider-picker select { grid-column: 1 / -1; }
+  .path-grid { grid-template-columns: 1fr; }
   dl div { grid-template-columns: 1fr; gap: 4px; }
 }
