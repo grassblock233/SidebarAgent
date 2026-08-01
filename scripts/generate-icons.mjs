@@ -38,20 +38,19 @@ function inRoundedSquare(x, y, size) {
   return (x - centerX) ** 2 + (y - centerY) ** 2 <= radius ** 2;
 }
 
-function inLetterD(x, y, size) {
-  const left = size * 0.29;
-  const innerLeft = size * 0.39;
+function inLetterA(x, y, size) {
+  const center = size * 0.5;
   const top = size * 0.24;
-  const innerTop = size * 0.34;
-  const right = size * 0.7;
-  const innerRight = size * 0.59;
   const bottom = size * 0.76;
-  const innerBottom = size * 0.66;
-  const vertical = x >= left && x <= innerLeft && y >= top && y <= bottom;
-  const topBar = x >= innerLeft && x <= innerRight && y >= top && y <= innerTop;
-  const bottomBar = x >= innerLeft && x <= innerRight && y >= innerBottom && y <= bottom;
-  const rightBar = x >= innerRight && x <= right && y >= innerTop && y <= innerBottom;
-  return vertical || topBar || bottomBar || rightBar;
+  if (y < top || y > bottom) return false;
+
+  const progress = (y - top) / (bottom - top);
+  const halfWidth = size * (0.04 + progress * 0.2);
+  const stroke = size * 0.085;
+  const distanceFromCenter = Math.abs(x - center);
+  const legs = Math.abs(distanceFromCenter - halfWidth) <= stroke / 2;
+  const crossbar = y >= size * 0.52 && y <= size * 0.59 && distanceFromCenter <= halfWidth;
+  return legs || crossbar;
 }
 
 function makePng(size) {
@@ -62,7 +61,7 @@ function makePng(size) {
     for (let x = 0; x < size; x += 1) {
       const offset = y * rowBytes + 1 + x * 4;
       const background = inRoundedSquare(x + 0.5, y + 0.5, size);
-      const letter = background && inLetterD(x + 0.5, y + 0.5, size);
+      const letter = background && inLetterA(x + 0.5, y + 0.5, size);
       const color = letter ? [255, 255, 255, 255] : background ? [21, 95, 80, 255] : [0, 0, 0, 0];
       raw.set(color, offset);
     }

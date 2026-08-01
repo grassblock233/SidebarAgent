@@ -1,5 +1,5 @@
 {
-  "name": "deepseek-sidepanel",
+  "name": "sidebar-agent",
   "version": "0.4.0",
   "private": true,
   "type": "module",

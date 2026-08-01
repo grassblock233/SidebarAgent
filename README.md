@@ -1,4 +1,4 @@
-# DeepSeek 侧边栏
+# SidebarAgent
 
 一个 Chrome / Edge Manifest V3 插件。选中网页文字后，可以通过右键菜单把内容送入侧边栏，并使用 DeepSeek 进行解释、总结、翻译和连续追问。
 
@@ -7,7 +7,7 @@
 1. 打开 Chrome 的 `chrome://extensions`，或 Edge 的 `edge://extensions`。
 2. 开启“开发者模式”。
 3. 点击“加载已解压的扩展程序”。
-4. 选择本项目的 `deepseek-sidepanel` 目录。
+4. 选择本项目的 `SidebarAgent` 目录。
 5. 点击扩展图标打开侧边栏，再点击底部输入栏的设置按钮。
 6. 填写 DeepSeek API Key，点击“连接并获取模型”，选择模型后保存配置。
 

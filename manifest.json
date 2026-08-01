@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "DeepSeek 侧边栏",
+  "name": "SidebarAgent",
   "version": "0.4.0",
-  "description": "在浏览网页时，将选中文字发送到 DeepSeek 侧边栏进行分析。",
+  "description": "在浏览网页时，将选中文字发送到 SidebarAgent，并使用 DeepSeek 进行分析。",
   "permissions": [
     "contextMenus",
     "sidePanel",
@@ -16,7 +16,7 @@
     "type": "module"
   },
   "action": {
-    "default_title": "打开 DeepSeek 侧边栏",
+    "default_title": "打开 SidebarAgent",
     "default_icon": {
       "16": "assets/icon-16.png",
       "32": "assets/icon-32.png"
