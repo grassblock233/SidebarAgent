@@ -21,12 +21,11 @@
               <span class="source-label">来源</span>
               <a id="sourceLink" href="#" target="_blank" rel="noreferrer"></a>
             </div>
-            <button id="toggleSourceButton" class="pin-button" type="button" title="固定展开" aria-label="固定展开" aria-pressed="false">
-              <svg class="pin-icon pin-icon-off" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 17v5M5 3l14 14M9 4h6l-1 5 4 4H9l-4-4 2.1-2.1"/></svg>
-              <svg class="pin-icon pin-icon-on" aria-hidden="true" viewBox="0 0 24 24"><path d="M12 17v5M5 3h14M9 3v5l-4 5h14l-4-5V3"/></svg>
-            </button>
           </div>
-          <p id="sourceText" class="source-text"></p>
+          <div id="sourcePreviewRow" class="source-preview-row">
+            <p id="sourceText" class="source-text"></p>
+            <button id="toggleSourceButton" class="source-toggle-button" type="button" aria-controls="sourceText" aria-expanded="false" hidden>展开</button>
+          </div>
           <p id="truncatedNotice" class="truncated-notice" hidden></p>
         </section>
       </div>
@@ -41,9 +40,7 @@
 
       <main id="content" class="content">
         <div id="emptyState" class="empty-state">
-          <div class="empty-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M8 3h8l5 5v8l-5 5H8l-5-5V8l5-5Z"/><path d="m9 12 2 2 4-5"/></svg>
-          </div>
+          <img class="empty-logo" src="assets/icon-128.png" alt="" aria-hidden="true">
           <h1>暂无分析内容</h1>
           <p>等待网页选区</p>
         </div>
@@ -79,6 +76,9 @@
             </div>
             <div class="composer-tools">
               <span id="characterCount">0 / 4000</span>
+              <button id="captureViewportButton" class="composer-tool-button" type="button" title="读取当前屏幕文字" aria-label="读取当前屏幕文字">
+                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2M7 8h8M7 12h10M7 16h6"/></svg>
+              </button>
               <button id="clearButton" class="composer-tool-button" type="button" title="清除当前对话" aria-label="清除当前对话">
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m5 4v6m4-6v6"/></svg>
               </button>

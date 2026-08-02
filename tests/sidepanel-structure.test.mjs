@@ -30,9 +30,13 @@ test("viewport, conversation and composer use fixed shell constraints", () => {
   assert.doesNotMatch(css, /\.composer-dock:(hover|focus-within) \.composer-surface/);
 });
 
-test("source overlay and reduced-motion fallback remain available", () => {
-  assert.match(css, /\.source-dock:hover \.source-panel/);
-  assert.match(css, /\.source-dock\.is-pinned \.source-panel/);
+test("source expands only through its disclosure control", () => {
+  assert.match(html, /id="toggleSourceButton"[^>]*aria-expanded="false"/);
+  assert.doesNotMatch(html, /pin-icon/);
+  assert.match(css, /\.source-dock\.is-expanded \.source-panel/);
+  assert.match(css, /max-height: 50vh/);
+  assert.match(css, /text-overflow: ellipsis/);
+  assert.doesNotMatch(css, /\.source-dock:(hover|focus-within) \.source-panel|\.source-dock\.is-pinned/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/);
   assert.match(css, /\.action-button\.is-generating/);
 });
@@ -41,4 +45,11 @@ test("hidden side panel states cannot be overridden by component display rules",
   const js = fs.readFileSync(new URL("../sidepanel.js", import.meta.url), "utf8");
   assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;/);
   assert.match(js, /emptyState\.hidden = hasSource \|\| state\.messages\.length > 0/);
+});
+
+test("markdown tables use the structured parser and a scrollable container", () => {
+  const js = fs.readFileSync(new URL("../sidepanel.js", import.meta.url), "utf8");
+  assert.match(js, /parseMarkdownTable\(lines, index\)/);
+  assert.match(js, /document\.createElement\("table"\)/);
+  assert.match(css, /\.markdown-table-wrap\s*\{[^}]*overflow-x: auto;/);
 });

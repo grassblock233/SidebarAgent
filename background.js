@@ -18,6 +18,22 @@ async function enableActionSidePanel() {
   await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 }
 
+async function captureVisibleText() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) throw new Error("无法确定当前网页。");
+  if (tab.url && !/^(https?|file):/i.test(tab.url)) {
+    throw new Error("当前浏览器页面不允许读取文字，请切换到普通网页。");
+  }
+
+  const [injection] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    files: ["content/visible-text.js"]
+  });
+  const source = injection?.result;
+  if (!source?.text) throw new Error("当前屏幕没有可读取的网页文字。");
+  return source;
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   createContextMenu().catch(console.error);
   enableActionSidePanel().catch(console.error);
@@ -53,4 +69,13 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   } catch (error) {
     console.error("Unable to open side panel", error);
   }
+});
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type !== "capture-visible-text") return false;
+  captureVisibleText().then(
+    (source) => sendResponse({ ok: true, source }),
+    (error) => sendResponse({ ok: false, error: error.message || "读取当前屏幕文字失败。" })
+  );
+  return true;
 });

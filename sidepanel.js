@@ -8,6 +8,7 @@ import {
   SYSTEM_PROMPT
 } from "./shared/constants.js";
 import { ProviderError, streamChat } from "./shared/openai-compatible-client.js";
+import { parseMarkdownTable } from "./shared/markdown-table.js";
 import { resolveProvider } from "./shared/providers.js";
 import {
   clearConversationSession,
@@ -27,6 +28,7 @@ const CONFIGURATION_ERROR = "请先配置 API Key 并选择一个可用模型。
 
 const elements = {
   clearButton: document.querySelector("#clearButton"),
+  captureViewportButton: document.querySelector("#captureViewportButton"),
   settingsButton: document.querySelector("#settingsButton"),
   setupNotice: document.querySelector("#setupNotice"),
   setupNoticeText: document.querySelector("#setupNoticeText"),
@@ -34,6 +36,7 @@ const elements = {
   sourceDock: document.querySelector("#sourceDock"),
   sourcePanel: document.querySelector("#sourcePanel"),
   sourceLink: document.querySelector("#sourceLink"),
+  sourcePreviewRow: document.querySelector("#sourcePreviewRow"),
   sourceText: document.querySelector("#sourceText"),
   truncatedNotice: document.querySelector("#truncatedNotice"),
   toggleSourceButton: document.querySelector("#toggleSourceButton"),
@@ -54,7 +57,9 @@ const elements = {
 const state = {
   source: null,
   messages: [],
-  sourcePinned: false,
+  sourceExpanded: false,
+  sourceOverflowing: false,
+  sourceMeasureQueued: false,
   activeProviderId: DEFAULT_PROVIDER_ID,
   providerName: "DeepSeek",
   hasApiKey: false,
@@ -62,6 +67,8 @@ const state = {
   availableModels: [],
   modelSelectionMode: "list",
   modelSwitching: false,
+  capturingViewport: false,
+  capturePermissionOrigin: "",
   requestProviderName: "",
   busy: false,
   submitting: false,
@@ -108,6 +115,42 @@ function isBlockStart(line) {
   return /^```|^#{1,3}\s|^[-*]\s|^\d+\.\s|^>\s?/.test(line);
 }
 
+function renderTable(container, tableData) {
+  const scrollArea = document.createElement("div");
+  scrollArea.className = "markdown-table-wrap";
+  scrollArea.tabIndex = 0;
+  scrollArea.setAttribute("aria-label", "表格");
+  const table = document.createElement("table");
+  const head = document.createElement("thead");
+  const headerRow = document.createElement("tr");
+  tableData.headers.forEach((content, columnIndex) => {
+    const cell = document.createElement("th");
+    cell.scope = "col";
+    cell.className = `align-${tableData.alignments[columnIndex]}`;
+    appendInline(cell, content);
+    headerRow.append(cell);
+  });
+  head.append(headerRow);
+  table.append(head);
+
+  if (tableData.rows.length) {
+    const body = document.createElement("tbody");
+    for (const row of tableData.rows) {
+      const tableRow = document.createElement("tr");
+      row.forEach((content, columnIndex) => {
+        const cell = document.createElement("td");
+        cell.className = `align-${tableData.alignments[columnIndex]}`;
+        appendInline(cell, content);
+        tableRow.append(cell);
+      });
+      body.append(tableRow);
+    }
+    table.append(body);
+  }
+  scrollArea.append(table);
+  container.append(scrollArea);
+}
+
 function renderMarkdown(container, text) {
   container.replaceChildren();
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
@@ -135,6 +178,13 @@ function renderMarkdown(container, text) {
       code.textContent = codeLines.join("\n");
       pre.append(code);
       container.append(pre);
+      continue;
+    }
+
+    const tableData = parseMarkdownTable(lines, index);
+    if (tableData) {
+      renderTable(container, tableData);
+      index = tableData.nextIndex;
       continue;
     }
 
@@ -185,7 +235,7 @@ function renderMarkdown(container, text) {
 
     const paragraphLines = [line];
     index += 1;
-    while (index < lines.length && lines[index].trim() && !isBlockStart(lines[index])) {
+    while (index < lines.length && lines[index].trim() && !isBlockStart(lines[index]) && !parseMarkdownTable(lines, index)) {
       paragraphLines.push(lines[index]);
       index += 1;
     }
@@ -279,14 +329,30 @@ function renderSource() {
     elements.sourceLink.removeAttribute("title");
   }
   elements.sourceText.textContent = state.source.text;
-  elements.sourceDock.classList.toggle("is-pinned", state.sourcePinned);
-  elements.toggleSourceButton.setAttribute("aria-pressed", String(state.sourcePinned));
-  elements.toggleSourceButton.title = state.sourcePinned ? "取消固定" : "固定展开";
+  elements.sourceDock.classList.toggle("is-expanded", state.sourceExpanded);
+  elements.toggleSourceButton.hidden = !state.sourceExpanded && !state.sourceOverflowing;
+  elements.toggleSourceButton.textContent = state.sourceExpanded ? "收起" : "展开";
+  elements.toggleSourceButton.setAttribute("aria-expanded", String(state.sourceExpanded));
+  elements.toggleSourceButton.title = state.sourceExpanded ? "收起来源文字" : "展开来源文字";
   elements.toggleSourceButton.setAttribute("aria-label", elements.toggleSourceButton.title);
   elements.truncatedNotice.hidden = !state.source.truncated;
   elements.truncatedNotice.textContent = state.source.truncated
     ? `原文共 ${state.source.originalLength.toLocaleString()} 个字符，已保留前 12,000 个字符。`
     : "";
+  scheduleSourceOverflowMeasure();
+}
+
+function scheduleSourceOverflowMeasure() {
+  if (!state.source || state.sourceExpanded || state.sourceMeasureQueued) return;
+  state.sourceMeasureQueued = true;
+  requestAnimationFrame(() => {
+    state.sourceMeasureQueued = false;
+    if (!state.source || state.sourceExpanded) return;
+    const overflowing = elements.sourceText.scrollWidth > elements.sourcePreviewRow.clientWidth + 1;
+    if (overflowing === state.sourceOverflowing) return;
+    state.sourceOverflowing = overflowing;
+    elements.toggleSourceButton.hidden = !overflowing;
+  });
 }
 
 function renderControls() {
@@ -305,6 +371,11 @@ function renderControls() {
   renderModelSelect();
   elements.questionInput.disabled = !state.source;
   elements.clearButton.disabled = state.submitting;
+  elements.captureViewportButton.disabled = state.capturingViewport || state.submitting;
+  elements.captureViewportButton.classList.toggle("is-capturing", state.capturingViewport);
+  elements.captureViewportButton.title = state.capturingViewport ? "正在读取当前屏幕文字" : "读取当前屏幕文字";
+  elements.captureViewportButton.setAttribute("aria-label", elements.captureViewportButton.title);
+  elements.captureViewportButton.setAttribute("aria-busy", String(state.capturingViewport));
   elements.actionButton.disabled = actionState.disabled;
   elements.actionButton.classList.toggle("is-generating", actionState.generating);
   elements.actionButton.title = actionState.label;
@@ -354,7 +425,8 @@ async function applySelection(source) {
   stopActiveRequest("new-selection");
   state.source = source;
   state.messages = [];
-  state.sourcePinned = false;
+  state.sourceExpanded = false;
+  state.sourceOverflowing = false;
   state.error = "";
   state.status = "";
   elements.questionInput.value = "";
@@ -509,12 +581,59 @@ async function clearCurrentSession() {
   await clearConversationSession();
   state.source = null;
   state.messages = [];
-  state.sourcePinned = false;
+  state.sourceExpanded = false;
+  state.sourceOverflowing = false;
   state.error = "";
   state.status = "";
   elements.questionInput.value = "";
   resizeComposer();
   render();
+}
+
+async function captureViewportText() {
+  if (state.capturingViewport || state.submitting) return;
+  state.capturingViewport = true;
+  state.error = "";
+  state.status = "正在读取当前屏幕文字";
+  renderControls();
+  try {
+    let origin = state.capturePermissionOrigin;
+    if (!origin) {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab?.url) throw new Error("无法确定当前网页地址。");
+      const url = new URL(tab.url);
+      if (!["http:", "https:", "file:"].includes(url.protocol)) {
+        throw new Error("当前浏览器页面不允许读取文字，请切换到普通网页。");
+      }
+      origin = url.protocol === "file:" ? "" : `${url.protocol}//${url.hostname}/*`;
+      state.capturePermissionOrigin = origin;
+    }
+    if (origin) {
+      let granted;
+      try {
+        granted = await chrome.permissions.request({ origins: [origin] });
+      } catch (error) {
+        if (/user gesture/i.test(error.message || "")) {
+          throw new Error("需要网页访问授权，请再次点击读取按钮。");
+        }
+        throw error;
+      }
+      if (!granted) throw new Error("未获得当前网站的文字读取权限。");
+    }
+    state.capturePermissionOrigin = "";
+    const response = await chrome.runtime.sendMessage({ type: "capture-visible-text" });
+    if (!response?.ok) throw new Error(response?.error || "读取当前屏幕文字失败。");
+    await applySelection(response.source);
+    state.status = response.source.truncated
+      ? "已读取当前屏幕文字，内容已按长度上限截取"
+      : "已读取当前屏幕文字";
+  } catch (error) {
+    state.error = error.message || "读取当前屏幕文字失败。";
+    state.status = "";
+  } finally {
+    state.capturingViewport = false;
+    render();
+  }
 }
 
 function openSettings() {
@@ -605,9 +724,10 @@ function applySettings(settings) {
 
 elements.settingsButton.addEventListener("click", openSettings);
 elements.setupButton.addEventListener("click", openSettings);
+elements.captureViewportButton.addEventListener("click", captureViewportText);
 elements.clearButton.addEventListener("click", clearCurrentSession);
 elements.toggleSourceButton.addEventListener("click", () => {
-  state.sourcePinned = !state.sourcePinned;
+  state.sourceExpanded = !state.sourceExpanded;
   renderSource();
 });
 elements.actionButton.addEventListener("click", () => {
@@ -620,11 +740,6 @@ elements.questionInput.addEventListener("input", () => {
   resizeComposer();
   renderControls();
 });
-elements.questionInput.addEventListener("focus", () => {
-  if (!state.sourcePinned) return;
-  state.sourcePinned = false;
-  renderSource();
-});
 elements.questionInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
     event.preventDefault();
@@ -636,6 +751,7 @@ elements.quickActions.addEventListener("click", (event) => {
   if (!button) return;
   submitQuestion(QUICK_ACTIONS[button.dataset.action]);
 });
+window.addEventListener("resize", scheduleSourceOverflowMeasure);
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === "session" && changes[PENDING_SELECTION_KEY]?.newValue) {

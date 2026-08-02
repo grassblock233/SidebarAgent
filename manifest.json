@@ -1,12 +1,15 @@
 {
   "manifest_version": 3,
   "name": "SidebarAgent",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "在浏览网页时，将选中文字发送到 SidebarAgent，并使用所选 AI 提供商进行分析。",
   "permissions": [
+    "activeTab",
     "contextMenus",
     "sidePanel",
-    "storage"
+    "scripting",
+    "storage",
+    "tabs"
   ],
   "host_permissions": [
     "https://api.deepseek.com/*",
@@ -16,6 +19,7 @@
   ],
   "optional_host_permissions": [
     "https://*/*",
+    "http://*/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
