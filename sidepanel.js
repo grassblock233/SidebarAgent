@@ -35,14 +35,19 @@ const elements = {
   setupButton: document.querySelector("#setupButton"),
   sourceDock: document.querySelector("#sourceDock"),
   sourcePanel: document.querySelector("#sourcePanel"),
+  sourceLabel: document.querySelector("#sourceLabel"),
+  sourceMeta: document.querySelector("#sourceMeta"),
   sourceLink: document.querySelector("#sourceLink"),
   sourcePreviewRow: document.querySelector("#sourcePreviewRow"),
   sourceText: document.querySelector("#sourceText"),
   truncatedNotice: document.querySelector("#truncatedNotice"),
   toggleSourceButton: document.querySelector("#toggleSourceButton"),
+  toggleSourceLabel: document.querySelector("#toggleSourceButton .toggle-label"),
   quickActions: document.querySelector("#quickActions"),
   content: document.querySelector("#content"),
   emptyState: document.querySelector("#emptyState"),
+  emptyCaptureButton: document.querySelector("#emptyCaptureButton"),
+  emptyCaptureText: document.querySelector("#emptyCaptureText"),
   messages: document.querySelector("#messages"),
   errorPanel: document.querySelector("#errorPanel"),
   errorText: document.querySelector("#errorText"),
@@ -50,6 +55,10 @@ const elements = {
   questionInput: document.querySelector("#questionInput"),
   actionButton: document.querySelector("#actionButton"),
   modelSelect: document.querySelector("#modelSelect"),
+  modelPickerButton: document.querySelector("#modelPickerButton"),
+  modelPickerProvider: document.querySelector(".model-picker-provider"),
+  modelPickerLabel: document.querySelector("#modelPickerLabel"),
+  modelPickerMenu: document.querySelector("#modelPickerMenu"),
   statusText: document.querySelector("#statusText"),
   characterCount: document.querySelector("#characterCount")
 };
@@ -245,10 +254,29 @@ function renderMarkdown(container, text) {
   }
 }
 
-function makeActionButton(label, onClick) {
+const MESSAGE_ACTION_ICONS = {
+  copy: ["M8 8h11v11H8z", "M5 16H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h11a1 1 0 0 1 1 1v1"],
+  regenerate: ["M20 7v5h-5", "M19 12a7 7 0 1 1-2.1-5"]
+};
+
+function createMessageActionIcon(iconName) {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  for (const pathData of MESSAGE_ACTION_ICONS[iconName]) {
+    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", pathData);
+    svg.append(path);
+  }
+  return svg;
+}
+
+function makeActionButton(label, iconName, onClick) {
   const button = document.createElement("button");
   button.type = "button";
-  button.textContent = label;
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.append(createMessageActionIcon(iconName));
   button.addEventListener("click", onClick);
   return button;
 }
@@ -270,15 +298,22 @@ function renderMessages() {
     if (message.content) {
       const actions = document.createElement("div");
       actions.className = "message-actions";
-      actions.append(makeActionButton("复制", async (event) => {
+      actions.append(makeActionButton("复制", "copy", async (event) => {
+        const button = event.currentTarget;
         await navigator.clipboard.writeText(message.content);
-        event.currentTarget.textContent = "已复制";
-        setTimeout(() => { event.currentTarget.textContent = "复制"; }, 1200);
+        button.classList.add("is-success");
+        button.title = "已复制";
+        button.setAttribute("aria-label", "已复制");
+        setTimeout(() => {
+          button.classList.remove("is-success");
+          button.title = "复制";
+          button.setAttribute("aria-label", "复制");
+        }, 1200);
       }));
 
       const isLatestAssistant = message.role === "assistant" && index === state.messages.length - 1;
       if (isLatestAssistant && !state.busy) {
-        actions.append(makeActionButton("重新生成", () => regenerateLastReply()));
+        actions.append(makeActionButton("重新生成", "regenerate", () => regenerateLastReply()));
       }
       heading.append(actions);
     }
@@ -320,6 +355,15 @@ function renderSource() {
   elements.emptyState.hidden = hasSource || state.messages.length > 0;
   if (!hasSource) return;
 
+  const sourceLabel = state.source.captureType === "viewport" ? "页面文字" : "选中文本";
+  const originalLength = Number.isFinite(state.source.originalLength)
+    ? state.source.originalLength
+    : state.source.text.length;
+  elements.sourceLabel.textContent = sourceLabel;
+  elements.sourceMeta.textContent = state.source.truncated
+    ? `${state.source.text.length.toLocaleString()} / ${originalLength.toLocaleString()} 字`
+    : `${originalLength.toLocaleString()} 字`;
+  elements.sourcePanel.setAttribute("aria-label", `${sourceLabel}，来自${state.source.title}`);
   elements.sourceLink.textContent = state.source.title;
   if (isSafeWebUrl(state.source.url)) {
     elements.sourceLink.href = state.source.url;
@@ -331,7 +375,7 @@ function renderSource() {
   elements.sourceText.textContent = state.source.text;
   elements.sourceDock.classList.toggle("is-expanded", state.sourceExpanded);
   elements.toggleSourceButton.hidden = !state.sourceExpanded && !state.sourceOverflowing;
-  elements.toggleSourceButton.textContent = state.sourceExpanded ? "收起" : "展开";
+  elements.toggleSourceLabel.textContent = state.sourceExpanded ? "收起" : "展开";
   elements.toggleSourceButton.setAttribute("aria-expanded", String(state.sourceExpanded));
   elements.toggleSourceButton.title = state.sourceExpanded ? "收起来源文字" : "展开来源文字";
   elements.toggleSourceButton.setAttribute("aria-label", elements.toggleSourceButton.title);
@@ -348,7 +392,8 @@ function scheduleSourceOverflowMeasure() {
   requestAnimationFrame(() => {
     state.sourceMeasureQueued = false;
     if (!state.source || state.sourceExpanded) return;
-    const overflowing = elements.sourceText.scrollWidth > elements.sourcePreviewRow.clientWidth + 1;
+    const overflowing = elements.sourceText.scrollWidth > elements.sourcePreviewRow.clientWidth + 1 ||
+      elements.sourceText.scrollHeight > elements.sourceText.clientHeight + 1;
     if (overflowing === state.sourceOverflowing) return;
     state.sourceOverflowing = overflowing;
     elements.toggleSourceButton.hidden = !overflowing;
@@ -376,6 +421,10 @@ function renderControls() {
   elements.captureViewportButton.title = state.capturingViewport ? "正在读取当前屏幕文字" : "读取当前屏幕文字";
   elements.captureViewportButton.setAttribute("aria-label", elements.captureViewportButton.title);
   elements.captureViewportButton.setAttribute("aria-busy", String(state.capturingViewport));
+  elements.emptyCaptureButton.disabled = state.capturingViewport || state.submitting;
+  elements.emptyCaptureButton.classList.toggle("is-capturing", state.capturingViewport);
+  elements.emptyCaptureText.textContent = state.capturingViewport ? "正在读取" : "读取当前页面";
+  elements.emptyCaptureButton.setAttribute("aria-busy", String(state.capturingViewport));
   elements.actionButton.disabled = actionState.disabled;
   elements.actionButton.classList.toggle("is-generating", actionState.generating);
   elements.actionButton.title = actionState.label;
@@ -675,6 +724,58 @@ function renderModelSelect() {
   select.title = canSelect
     ? `${state.providerName}：${state.selectedModel}；选择下次请求使用的模型`
     : isListMode ? displayText : `${displayText}；手动模型请在设置页修改`;
+  renderModelPicker({ canSelect, displayText });
+}
+
+function renderModelPicker({ canSelect, displayText }) {
+  const button = elements.modelPickerButton;
+  const menu = elements.modelPickerMenu;
+  const wasOpen = button.getAttribute("aria-expanded") === "true";
+  elements.modelPickerProvider.textContent = state.hasApiKey ? state.providerName : "AI";
+  elements.modelPickerLabel.textContent = state.selectedModel || displayText.replace(`${state.providerName} · `, "");
+  button.disabled = !canSelect;
+  button.title = canSelect
+    ? `${state.providerName}：${state.selectedModel}；打开模型列表`
+    : displayText;
+  button.setAttribute("aria-label", canSelect ? `选择${state.providerName}模型，当前为${state.selectedModel}` : displayText);
+  if (!canSelect) setModelPickerOpen(false);
+  menu.replaceChildren();
+  menu.hidden = !canSelect || !wasOpen;
+  if (!canSelect) return;
+  for (const model of state.availableModels) {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "model-picker-option";
+    option.dataset.model = model;
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", String(model === state.selectedModel));
+    const name = document.createElement("span");
+    name.className = "model-picker-option-name";
+    name.textContent = model;
+    option.append(name);
+    if (model === state.selectedModel) {
+      const check = document.createElement("span");
+      check.className = "model-picker-check";
+      check.setAttribute("aria-hidden", "true");
+      check.textContent = "✓";
+      option.append(check);
+    }
+    menu.append(option);
+  }
+}
+
+function setModelPickerOpen(open) {
+  const shouldOpen = Boolean(open && !elements.modelPickerButton.disabled);
+  elements.modelPickerMenu.hidden = !shouldOpen;
+  elements.modelPickerButton.setAttribute("aria-expanded", String(shouldOpen));
+  elements.modelPickerButton.classList.toggle("is-open", shouldOpen);
+}
+
+function selectModelFromPicker(model) {
+  if (!model || elements.modelSelect.disabled) return;
+  elements.modelSelect.value = model;
+  setModelPickerOpen(false);
+  elements.modelSelect.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 async function changeSelectedModel(model) {
@@ -725,6 +826,7 @@ function applySettings(settings) {
 elements.settingsButton.addEventListener("click", openSettings);
 elements.setupButton.addEventListener("click", openSettings);
 elements.captureViewportButton.addEventListener("click", captureViewportText);
+elements.emptyCaptureButton.addEventListener("click", captureViewportText);
 elements.clearButton.addEventListener("click", clearCurrentSession);
 elements.toggleSourceButton.addEventListener("click", () => {
   state.sourceExpanded = !state.sourceExpanded;
@@ -733,6 +835,43 @@ elements.toggleSourceButton.addEventListener("click", () => {
 elements.actionButton.addEventListener("click", () => {
   if (state.busy) stopActiveRequest("user");
   else submitQuestion(elements.questionInput.value);
+});
+elements.modelPickerButton.addEventListener("click", () => {
+  setModelPickerOpen(elements.modelPickerMenu.hidden);
+});
+elements.modelPickerButton.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    setModelPickerOpen(true);
+    elements.modelPickerMenu.querySelector(".model-picker-option")?.focus();
+  }
+  if (event.key === "Escape") setModelPickerOpen(false);
+});
+elements.modelPickerMenu.addEventListener("click", (event) => {
+  const option = event.target.closest(".model-picker-option");
+  if (option) selectModelFromPicker(option.dataset.model);
+});
+elements.modelPickerMenu.addEventListener("keydown", (event) => {
+  const options = [...elements.modelPickerMenu.querySelectorAll(".model-picker-option")];
+  const currentIndex = options.indexOf(document.activeElement);
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    const nextIndex = event.key === "ArrowDown"
+      ? (currentIndex + 1) % options.length
+      : (currentIndex - 1 + options.length) % options.length;
+    options[nextIndex]?.focus();
+  } else if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    selectModelFromPicker(document.activeElement?.dataset.model);
+  } else if (event.key === "Escape") {
+    setModelPickerOpen(false);
+    elements.modelPickerButton.focus();
+  }
+});
+document.addEventListener("pointerdown", (event) => {
+  if (!elements.modelPickerMenu.hidden && !elements.modelPickerMenu.contains(event.target) && !elements.modelPickerButton.contains(event.target)) {
+    setModelPickerOpen(false);
+  }
 });
 elements.modelSelect.addEventListener("change", () => changeSelectedModel(elements.modelSelect.value));
 elements.retryButton.addEventListener("click", retryLastReply);

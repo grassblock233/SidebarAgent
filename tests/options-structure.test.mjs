@@ -4,6 +4,7 @@ import fs from "node:fs";
 
 const html = fs.readFileSync(new URL("../options.html", import.meta.url), "utf8");
 const js = fs.readFileSync(new URL("../options.js", import.meta.url), "utf8");
+const css = fs.readFileSync(new URL("../options.css", import.meta.url), "utf8");
 
 test("custom provider is selected from the provider menu", () => {
   assert.doesNotMatch(html, /id="addCustomButton"/);
@@ -11,4 +12,22 @@ test("custom provider is selected from the provider menu", () => {
   assert.match(js, /ADD_CUSTOM_PROVIDER/);
   assert.match(js, /customFields\.hidden = !isCustom/);
   assert.match(js, /configurationHeading\.textContent = isCustom/);
+});
+
+test("settings group credentials, models and commit actions", () => {
+  assert.match(html, /shared\/theme\.css/);
+  assert.match(html, /<h3>访问凭据<\/h3>/);
+  assert.match(html, /<h3>模型<\/h3>/);
+  assert.match(html, /class="model-control-row"[\s\S]*id="modelSelect"[\s\S]*id="fetchModelsButton"/);
+  assert.match(html, /class="commit-actions"[\s\S]*id="saveButton"[\s\S]*id="activateButton"/);
+  assert.match(css, /\.field-group\s*\{[\s\S]*grid-template-columns:\s*176px minmax\(0, 1fr\)/);
+});
+
+test("settings collapse to one column on narrow screens", () => {
+  assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.field-group\s*\{\s*grid-template-columns:\s*1fr/);
+  assert.match(css, /@media \(max-width: 520px\)[\s\S]*\.model-control-row\s*\{\s*grid-template-columns:\s*1fr/);
+});
+
+test("settings omit the data and privacy summary", () => {
+  assert.doesNotMatch(html, /privacyHeading|数据与隐私|<dl>/);
 });
