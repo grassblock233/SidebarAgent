@@ -46,7 +46,7 @@
 - 网站访问权限优先使用 `optional_host_permissions`，只在用户主动操作时请求最小域名范围。
 - API Key 和模型配置存入 `chrome.storage.local`；选区和对话存入 `chrome.storage.session`。
 - 修改设置结构时必须保留旧版本迁移路径，并为迁移与无效数据补充测试。
-- 视口文字读取仅处理实际可见的 DOM 文本，不得悄悄扩展为截图、OCR 或整页采集。
+- 视口文字读取仅处理实际可见的 DOM 文本，不得悄悄扩展为截图、OCR 或整页采集。来源栏使用清洗后的纯文本，AI 上下文可以使用白名单重建的精简 HTML；HTML 不得通过 `innerHTML` 插入扩展页面。
 
 ## 测试要求
 

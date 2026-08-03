@@ -62,7 +62,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     truncated: normalizedText.length > MAX_SELECTION_CHARS,
     title: tab.title || "未命名网页",
     url: tab.url || info.pageUrl || "",
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    contentType: "text/plain"
   };
 
   // Opening the panel and persisting the selection can proceed independently.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SidebarAgent",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "在浏览网页时，将选中文字发送到 SidebarAgent，并使用所选 AI 提供商进行分析。",
   "permissions": [
     "activeTab",

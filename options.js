@@ -36,6 +36,11 @@ const elements = {
   apiKey: document.querySelector("#apiKey"),
   toggleVisibility: document.querySelector("#toggleVisibility"),
   manualModelToggle: document.querySelector("#manualModelToggle"),
+  modelPickerControl: document.querySelector("#modelPickerControl"),
+  modelPickerButton: document.querySelector("#modelPickerButton"),
+  modelPickerProvider: document.querySelector("#modelPickerProvider"),
+  modelPickerLabel: document.querySelector("#modelPickerLabel"),
+  modelPickerMenu: document.querySelector("#modelPickerMenu"),
   modelSelect: document.querySelector("#modelSelect"),
   manualModelInput: document.querySelector("#manualModelInput"),
   modelMeta: document.querySelector("#modelMeta"),
@@ -137,6 +142,62 @@ function populateModels(models, selectedModel = "") {
     elements.modelSelect.append(option);
   }
   elements.modelSelect.value = models.includes(selectedModel) ? selectedModel : "";
+  renderModelPicker();
+}
+
+function setModelPickerOpen(open) {
+  const shouldOpen = Boolean(open && !elements.modelPickerButton.disabled);
+  elements.modelPickerMenu.hidden = !shouldOpen;
+  elements.modelPickerButton.setAttribute("aria-expanded", String(shouldOpen));
+  elements.modelPickerButton.classList.toggle("is-open", shouldOpen);
+}
+
+function renderModelPicker() {
+  const models = [...elements.modelSelect.options].filter((option) => option.value);
+  const selectedModel = elements.modelSelect.value;
+  const selectedOption = elements.modelSelect.selectedOptions[0];
+  const displayText = selectedModel || selectedOption?.textContent || "请先获取模型列表";
+  const provider = currentProvider();
+  const canSelect = !elements.modelSelect.disabled && !elements.modelSelect.hidden && models.length > 0;
+  const wasOpen = elements.modelPickerButton.getAttribute("aria-expanded") === "true";
+
+  elements.modelPickerProvider.textContent = provider?.name || "AI";
+  elements.modelPickerLabel.textContent = displayText;
+  elements.modelPickerButton.disabled = !canSelect;
+  elements.modelPickerButton.title = canSelect ? `选择模型，当前为${displayText}` : displayText;
+  elements.modelPickerButton.setAttribute("aria-label", elements.modelPickerButton.title);
+  if (!canSelect) setModelPickerOpen(false);
+
+  elements.modelPickerMenu.replaceChildren();
+  elements.modelPickerMenu.hidden = !canSelect || !wasOpen;
+  if (!canSelect) return;
+  for (const modelOption of models) {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = "model-picker-option";
+    option.dataset.model = modelOption.value;
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", String(modelOption.value === selectedModel));
+    const name = document.createElement("span");
+    name.className = "model-picker-option-name";
+    name.textContent = modelOption.textContent;
+    option.append(name);
+    if (modelOption.value === selectedModel) {
+      const check = document.createElement("span");
+      check.className = "model-picker-check";
+      check.setAttribute("aria-hidden", "true");
+      check.textContent = "✓";
+      option.append(check);
+    }
+    elements.modelPickerMenu.append(option);
+  }
+}
+
+function selectModelFromPicker(model) {
+  if (!model || elements.modelSelect.disabled) return;
+  elements.modelSelect.value = model;
+  setModelPickerOpen(false);
+  elements.modelSelect.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 function formatFetchedAt(timestamp, count) {
@@ -176,6 +237,7 @@ function renderState() {
   elements.manualModelToggle.disabled = busy || !supportsDiscovery;
   elements.modelSelect.hidden = manualMode;
   elements.modelSelect.disabled = busy || !listTrusted;
+  elements.modelPickerControl.hidden = manualMode;
   elements.manualModelInput.hidden = !manualMode;
   elements.manualModelInput.disabled = busy;
   elements.fetchModelsButton.hidden = !supportsDiscovery;
@@ -185,6 +247,7 @@ function renderState() {
   elements.activateButton.disabled = busy || !valid || appSettings.activeProviderId === currentProviderId;
   elements.activateButton.textContent = appSettings.activeProviderId === currentProviderId ? "当前提供商" : "设为当前";
   elements.clearProviderButton.disabled = busy;
+  renderModelPicker();
 
   if (manualMode) {
     elements.modelMeta.textContent = currentProviderId === "volcengine"
@@ -386,6 +449,44 @@ elements.settingsForm.addEventListener("submit", (event) => { event.preventDefau
 elements.activateButton.addEventListener("click", () => persistDraft({ activate: true }));
 elements.fetchModelsButton.addEventListener("click", handleFetchModels);
 elements.clearProviderButton.addEventListener("click", clearCurrentProvider);
+elements.modelPickerButton.addEventListener("click", () => {
+  setModelPickerOpen(elements.modelPickerMenu.hidden);
+});
+elements.modelPickerButton.addEventListener("keydown", (event) => {
+  if (["ArrowDown", "Enter", " "].includes(event.key)) {
+    event.preventDefault();
+    setModelPickerOpen(true);
+    elements.modelPickerMenu.querySelector(".model-picker-option")?.focus();
+  } else if (event.key === "Escape") {
+    setModelPickerOpen(false);
+  }
+});
+elements.modelPickerMenu.addEventListener("click", (event) => {
+  const option = event.target.closest(".model-picker-option");
+  if (option) selectModelFromPicker(option.dataset.model);
+});
+elements.modelPickerMenu.addEventListener("keydown", (event) => {
+  const options = [...elements.modelPickerMenu.querySelectorAll(".model-picker-option")];
+  const currentIndex = options.indexOf(document.activeElement);
+  if (["ArrowDown", "ArrowUp"].includes(event.key)) {
+    event.preventDefault();
+    const nextIndex = event.key === "ArrowDown"
+      ? (currentIndex + 1) % options.length
+      : (currentIndex - 1 + options.length) % options.length;
+    options[nextIndex]?.focus();
+  } else if (["Enter", " "].includes(event.key)) {
+    event.preventDefault();
+    selectModelFromPicker(document.activeElement?.dataset.model);
+  } else if (event.key === "Escape") {
+    setModelPickerOpen(false);
+    elements.modelPickerButton.focus();
+  }
+});
+document.addEventListener("pointerdown", (event) => {
+  if (!elements.modelPickerMenu.hidden && !elements.modelPickerMenu.contains(event.target) && !elements.modelPickerButton.contains(event.target)) {
+    setModelPickerOpen(false);
+  }
+});
 elements.toggleVisibility.addEventListener("click", () => {
   const show = elements.apiKey.type === "password";
   elements.apiKey.type = show ? "text" : "password";

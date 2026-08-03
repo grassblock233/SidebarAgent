@@ -40,7 +40,7 @@ body {
   position: fixed;
   inset: 0;
   display: grid;
-  grid-template-rows: 48px auto auto auto minmax(0, 1fr) 104px;
+  grid-template-rows: 48px auto auto auto minmax(0, 1fr) 88px;
   min-width: 280px;
   overflow: hidden;
   background: var(--panel-bg);
@@ -414,7 +414,7 @@ svg {
   margin-bottom: 5px;
 }
 
-.message.user .message-heading { width: min(88%, 620px); }
+.message.user .message-heading { justify-content: flex-end; width: min(88%, 620px); gap: 3px; }
 .message-role { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10px; font-weight: 730; }
 .message-role::before { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); content: ""; }
 .message.user .message-role::before { background: #668fb0; }
@@ -497,8 +497,8 @@ svg {
   grid-row: 6;
   position: relative;
   z-index: 20;
-  height: 104px;
-  min-height: 104px;
+  height: 88px;
+  min-height: 88px;
   overflow: visible;
   border-top: 1px solid var(--border);
   background: rgba(255, 255, 255, .97);
@@ -508,7 +508,7 @@ svg {
 .composer-surface {
   position: absolute;
   inset: 0;
-  padding: 10px 12px 7px;
+  padding: 8px 12px 5px;
 }
 
 .composer {
@@ -558,7 +558,7 @@ svg {
   display: grid;
   grid-template-columns: minmax(100px, auto) minmax(0, 1fr) auto;
   align-items: center;
-  min-height: 28px;
+  min-height: 27px;
   gap: 8px;
   color: var(--text-muted);
   font-size: 10px;

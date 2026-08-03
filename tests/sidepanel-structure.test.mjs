@@ -39,11 +39,15 @@ test("unconfigured state uses provider-neutral copy", () => {
 
 test("viewport, conversation and composer use fixed shell constraints", () => {
   assert.match(css, /\.app-shell\s*\{[\s\S]*position: fixed;[\s\S]*inset: 0;/);
-  assert.match(css, /grid-template-rows: 48px auto auto auto minmax\(0, 1fr\) 104px/);
+  assert.match(css, /grid-template-rows: 48px auto auto auto minmax\(0, 1fr\) 88px/);
   assert.match(css, /\.content\s*\{[^}]*grid-row: 5;[^}]*overflow-y: auto;/);
-  assert.match(css, /\.composer-dock\s*\{[^}]*grid-row: 6;[^}]*height: 104px;/);
+  assert.match(css, /\.composer-dock\s*\{[^}]*grid-row: 6;[^}]*height: 88px;/);
   assert.match(css, /\.composer textarea\s*\{[^}]*height: 34px !important;[^}]*overflow-y: auto;/);
   assert.doesNotMatch(css, /\.composer-dock:(hover|focus-within) \.composer-surface/);
+});
+
+test("user message label and actions stay grouped at the right edge", () => {
+  assert.match(css, /\.message\.user \.message-heading\s*\{[^}]*justify-content: flex-end;[^}]*gap: 3px;/);
 });
 
 test("source expands only through its disclosure control", () => {

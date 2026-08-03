@@ -2,8 +2,25 @@
 // chrome.scripting.executeScript, so this file must remain self-contained.
 (() => {
   const MAX_OUTPUT_CHARS = 12_000;
+  const MAX_HTML_CHARS = 24_000;
   const MAX_INSPECTED_SEGMENTS = 50_000;
   const ignoredTags = new Set(["SCRIPT", "STYLE", "NOSCRIPT", "TEMPLATE"]);
+  const allowedTags = new Set([
+    "A", "ARTICLE", "B", "BLOCKQUOTE", "CAPTION", "CODE", "DD", "DL", "DT", "EM",
+    "FIGCAPTION", "FIGURE", "FOOTER", "H1", "H2", "H3", "H4", "H5", "H6",
+    "HEADER", "I", "LI", "MAIN", "OL", "P", "PRE", "SECTION", "STRONG", "TABLE",
+    "TBODY", "TD", "TFOOT", "TH", "THEAD", "TR", "UL"
+  ]);
+  const contentTags = new Set([
+    "BLOCKQUOTE", "CAPTION", "DD", "DT", "FIGCAPTION", "H1", "H2", "H3",
+    "H4", "H5", "H6", "LI", "P", "PRE", "TD", "TH"
+  ]);
+  const plainBlockTags = new Set([
+    "ARTICLE", "BLOCKQUOTE", "CAPTION", "DD", "DL", "DT", "FIGCAPTION", "FIGURE",
+    "FOOTER", "H1", "H2", "H3", "H4", "H5", "H6", "HEADER", "LI", "MAIN",
+    "OL", "P", "PRE", "SECTION", "TABLE", "TR", "UL"
+  ]);
+  const inlineDisplays = new Set(["inline", "contents", "inline-block", "inline-flex", "inline-grid"]);
   const segmenter = typeof Intl.Segmenter === "function"
     ? new Intl.Segmenter(undefined, { granularity: "word" })
     : null;
@@ -76,33 +93,211 @@
     return visible.join("").replace(/[ \t]+/g, " ").trim();
   }
 
+  function normalizedTagName(element) {
+    if (element.tagName === "B") return "strong";
+    if (element.tagName === "I") return "em";
+    return element.tagName.toLowerCase();
+  }
+
+  function copySafeAttributes(source, target) {
+    if (source.tagName === "A") {
+      try {
+        const href = new URL(source.getAttribute("href") || "", location.href);
+        if (["http:", "https:"].includes(href.protocol)) target.setAttribute("href", href.href);
+      } catch {
+        // Invalid and non-web links are intentionally omitted from AI context.
+      }
+    }
+
+    if (["TD", "TH"].includes(source.tagName)) {
+      for (const attribute of ["colspan", "rowspan"]) {
+        const value = Number.parseInt(source.getAttribute(attribute) || "", 10);
+        if (Number.isInteger(value) && value > 1 && value <= 100) target.setAttribute(attribute, String(value));
+      }
+    }
+
+    if (source.tagName === "OL") {
+      const start = Number.parseInt(source.getAttribute("start") || "", 10);
+      if (Number.isInteger(start) && start !== 1) target.setAttribute("start", String(start));
+    }
+  }
+
+  function nearestFallbackBlock(ancestors) {
+    if (ancestors.some((element) => contentTags.has(element.tagName))) return null;
+    return [...ancestors].reverse().find((element) => {
+      if (allowedTags.has(element.tagName) || ignoredTags.has(element.tagName)) return false;
+      return !inlineDisplays.has(getComputedStyle(element).display);
+    }) || null;
+  }
+
+  function appendVisibleText(parent, text) {
+    const previousText = parent.textContent || "";
+    const needsSpace = previousText && !/\s$/.test(previousText) && !/^\s/.test(text) &&
+      !/^[,.;:!?，。！？；：、）】》]/.test(text) && !/[（【《]$/.test(previousText);
+    if (needsSpace) parent.append(document.createTextNode(" "));
+    parent.append(document.createTextNode(text));
+  }
+
+  function buildSanitizedTree(visibleParts) {
+    const root = document.createElement("div");
+    const clones = new Map();
+
+    for (const part of visibleParts) {
+      const ancestors = [];
+      for (let element = part.node.parentElement; element && element !== document.documentElement; element = element.parentElement) {
+        ancestors.unshift(element);
+      }
+      const fallbackBlock = nearestFallbackBlock(ancestors);
+      let parent = root;
+
+      for (const original of ancestors) {
+        const tagName = allowedTags.has(original.tagName)
+          ? normalizedTagName(original)
+          : original === fallbackBlock ? "p" : "";
+        if (!tagName) continue;
+
+        let clone = clones.get(original);
+        if (!clone) {
+          clone = document.createElement(tagName);
+          copySafeAttributes(original, clone);
+          clones.set(original, clone);
+          parent.append(clone);
+        }
+        parent = clone;
+      }
+      appendVisibleText(parent, part.text);
+    }
+    return root;
+  }
+
+  function plainTextFromTree(root) {
+    let output = "";
+
+    const appendLineBreak = () => {
+      output = output.replace(/[ \t]+$/g, "");
+      if (output && !output.endsWith("\n")) output += "\n";
+    };
+    const appendText = (text) => {
+      const needsSpace = output && !/[\s\t]$/.test(output) && !/^\s/.test(text) &&
+        !/^[,.;:!?，。！？；：、）】》]/.test(text) && !/[（【《]$/.test(output);
+      if (needsSpace) output += " ";
+      output += text;
+    };
+
+    const visit = (node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        appendText(node.data);
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+      const tagName = node.tagName;
+      if (plainBlockTags.has(tagName)) appendLineBreak();
+      for (const child of node.childNodes) visit(child);
+      if (["TD", "TH"].includes(tagName)) {
+        output = output.replace(/[ \t]+$/g, "");
+        output += "\t";
+      } else if (plainBlockTags.has(tagName)) {
+        appendLineBreak();
+      }
+    };
+
+    for (const child of root.childNodes) visit(child);
+    return output
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n[ \t]+/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  }
+
+  function escapeHtmlText(value) {
+    return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  }
+
+  function escapeHtmlAttribute(value) {
+    return escapeHtmlText(value).replaceAll('"', "&quot;");
+  }
+
+  function serializeTextWithinBudget(value, budget) {
+    let html = "";
+    let consumed = 0;
+    for (const character of value) {
+      const encoded = escapeHtmlText(character);
+      if (html.length + encoded.length > budget) break;
+      html += encoded;
+      consumed += character.length;
+    }
+    return { html, truncated: consumed < value.length };
+  }
+
+  function serializeNodeWithinBudget(node, budget) {
+    if (node.nodeType === Node.TEXT_NODE) return serializeTextWithinBudget(node.data, budget);
+    if (node.nodeType !== Node.ELEMENT_NODE) return { html: "", truncated: false };
+
+    const attributes = [...node.attributes]
+      .map(({ name, value }) => ` ${name}="${escapeHtmlAttribute(value)}"`)
+      .join("");
+    const openingTag = `<${node.localName}${attributes}>`;
+    const closingTag = `</${node.localName}>`;
+    if (openingTag.length + closingTag.length > budget) return { html: "", truncated: true };
+
+    let html = openingTag;
+    let truncated = false;
+    const children = [...node.childNodes];
+    for (let index = 0; index < children.length; index += 1) {
+      const remaining = budget - html.length - closingTag.length;
+      const result = serializeNodeWithinBudget(children[index], remaining);
+      html += result.html;
+      if (result.truncated || (!result.html && remaining <= 0)) {
+        truncated = true;
+        break;
+      }
+      if (index === children.length - 1) continue;
+      if (budget - html.length - closingTag.length <= 0) {
+        truncated = true;
+        break;
+      }
+    }
+    return { html: `${html}${closingTag}`, truncated };
+  }
+
+  function serializeTreeWithinBudget(root, budget) {
+    let html = "";
+    let truncated = false;
+    const children = [...root.childNodes];
+    for (let index = 0; index < children.length; index += 1) {
+      const result = serializeNodeWithinBudget(children[index], budget - html.length);
+      html += result.html;
+      if (result.truncated || !result.html) {
+        truncated = true;
+        break;
+      }
+    }
+    return { html: html.trim(), truncated };
+  }
+
   // TreeWalker preserves document order without copying or mutating page nodes.
   const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT);
   while (walker.nextNode() && inspectedSegments <= MAX_INSPECTED_SEGMENTS) {
     const text = visibleTextFromNode(walker.currentNode);
     if (!text) continue;
-    const display = getComputedStyle(walker.currentNode.parentElement).display;
-    const block = !["inline", "contents", "inline-block", "inline-flex", "inline-grid"].includes(display);
-    parts.push({ text, block });
+    parts.push({ node: walker.currentNode, text });
   }
 
-  // Preserve block boundaries while keeping inline fragments readable as prose.
-  let combined = "";
-  for (const part of parts) {
-    if (combined) combined += part.block ? "\n" : " ";
-    combined += part.text;
-  }
-  combined = combined
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n[ \t]+/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  // Only whitelisted ancestors of visible text are cloned. Serialization applies
+  // a separate budget while always closing emitted tags to keep the HTML valid.
+  const sanitizedTree = buildSanitizedTree(parts);
+  const combined = plainTextFromTree(sanitizedTree);
+  const structured = serializeTreeWithinBudget(sanitizedTree, MAX_HTML_CHARS);
 
   return {
     id: crypto.randomUUID(),
     text: combined.slice(0, MAX_OUTPUT_CHARS),
     originalLength: combined.length,
     truncated: combined.length > MAX_OUTPUT_CHARS,
+    html: structured.html,
+    htmlTruncated: structured.truncated,
+    contentType: structured.html ? "text/html" : "text/plain",
     title: document.title || "当前网页",
     url: location.href,
     createdAt: Date.now(),
