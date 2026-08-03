@@ -1,3 +1,5 @@
+// MV3 service worker: owns context-menu setup, side-panel opening and privileged
+// page-script injection. API keys and captured page content are never logged here.
 import {
   MAX_SELECTION_CHARS,
   MENU_ID,
@@ -5,6 +7,7 @@ import {
 } from "./shared/constants.js";
 
 async function createContextMenu() {
+  // Rebuild instead of appending so extension updates cannot leave duplicate entries.
   await chrome.contextMenus.removeAll();
   chrome.contextMenus.create({
     id: MENU_ID,
@@ -25,6 +28,7 @@ async function captureVisibleText() {
     throw new Error("当前浏览器页面不允许读取文字，请切换到普通网页。");
   }
 
+  // Script injection is kept behind a user action and a site-specific permission.
   const [injection] = await chrome.scripting.executeScript({
     target: { tabId: tab.id },
     files: ["content/visible-text.js"]
@@ -50,6 +54,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const normalizedText = info.selectionText.trim();
   if (!normalizedText) return;
 
+  // Store only the bounded text and enough origin metadata to reconstruct context.
   const selection = {
     id: crypto.randomUUID(),
     text: normalizedText.slice(0, MAX_SELECTION_CHARS),
@@ -60,6 +65,7 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     createdAt: Date.now()
   };
 
+  // Opening the panel and persisting the selection can proceed independently.
   const storeSelection = chrome.storage.session.set({ [PENDING_SELECTION_KEY]: selection });
   try {
     await Promise.all([
@@ -77,5 +83,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     (source) => sendResponse({ ok: true, source }),
     (error) => sendResponse({ ok: false, error: error.message || "读取当前屏幕文字失败。" })
   );
+  // Returning true keeps the response channel open for the async capture result.
   return true;
 });

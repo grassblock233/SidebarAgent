@@ -1,3 +1,5 @@
+// Minimal GFM-style table parser used by the DOM renderer. It returns structured
+// cells instead of HTML so model output is never inserted through innerHTML.
 function hasTablePipe(line) {
   let escaped = false;
   for (const character of line) {
@@ -20,6 +22,7 @@ export function splitMarkdownTableRow(line) {
   let cell = "";
   let escaped = false;
   let inCode = false;
+  // Pipes inside inline code or escaped pipes do not delimit table cells.
   for (const character of value) {
     if (escaped) {
       cell += character === "|" ? "|" : `\\${character}`;
@@ -52,6 +55,7 @@ function delimiterAlignment(cell) {
 }
 
 export function parseMarkdownTable(lines, startIndex) {
+  // A valid delimiter row is required to avoid interpreting ordinary prose as a table.
   const headerLine = lines[startIndex];
   const delimiterLine = lines[startIndex + 1];
   if (typeof headerLine !== "string" || typeof delimiterLine !== "string") return null;
@@ -68,6 +72,7 @@ export function parseMarkdownTable(lines, startIndex) {
   while (nextIndex < lines.length) {
     const line = lines[nextIndex];
     if (!line.trim() || !hasTablePipe(line) || /^```|^#{1,3}\s|^[-*]\s|^\d+\.\s|^>\s?/.test(line)) break;
+    // Normalize ragged rows to the header width for a stable DOM table shape.
     const cells = splitMarkdownTableRow(line).slice(0, headers.length);
     while (cells.length < headers.length) cells.push("");
     rows.push(cells);

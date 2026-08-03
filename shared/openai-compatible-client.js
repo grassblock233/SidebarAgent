@@ -1,3 +1,5 @@
+// Network client for OpenAI-compatible model discovery and streaming chat.
+// Callers own timeouts through AbortSignal; this module never logs credentials.
 import { buildApiUrl } from "./providers.js";
 
 export class ProviderError extends Error {
@@ -28,11 +30,13 @@ async function readError(response) {
 }
 
 export async function* readSseData(stream) {
+  // SSE frames can be split across arbitrary network chunks, including CRLF.
   const reader = stream.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let eventData = [];
 
+  // Multiple data lines belong to one event and are joined per the SSE format.
   const flushEvent = () => {
     if (!eventData.length) return null;
     const data = eventData.join("\n");
@@ -99,6 +103,7 @@ export async function fetchModels({ provider, apiKey, signal }) {
     throw new ProviderError(`${provider.name}返回的模型列表格式不正确。`, { code: "parse" });
   }
 
+  // Providers may return duplicates or metadata-only entries; expose stable IDs only.
   const models = [...new Set(
     payload.data
       .map((item) => typeof item?.id === "string" ? item.id.trim() : "")
@@ -145,6 +150,7 @@ export async function streamChat({ provider, apiKey, model, messages, signal, on
   }
   if (!response.body) throw new ProviderError(`${provider.name}返回了空响应。`, { code: "empty" });
 
+  // Parse one event at a time so the UI can render deltas without buffering the reply.
   for await (const data of readSseData(response.body)) {
     if (data === "[DONE]") break;
     try {

@@ -1,3 +1,5 @@
+// Central storage boundary. Every value is normalized on both read and write so
+// malformed or older browser data cannot leak unchecked into request code.
 import {
   DEFAULT_PROVIDER_ID,
   LEGACY_SETTINGS_KEY,
@@ -36,6 +38,7 @@ export function normalizeProviderConfig(config, providerId) {
       : null
   };
 
+  // Built-in endpoints are immutable; custom providers retain connection fields.
   if (!isCustomProviderId(providerId)) return normalized;
   return {
     ...normalized,
@@ -63,6 +66,7 @@ export function normalizeSettings(storedSettings) {
   const storedProviders = storedSettings.providers && typeof storedSettings.providers === "object"
     ? storedSettings.providers
     : {};
+  // Always materialize built-ins so newly added providers appear after upgrades.
   for (const providerId of BUILTIN_PROVIDER_IDS) {
     normalized.providers[providerId] = normalizeProviderConfig(storedProviders[providerId], providerId);
   }
@@ -83,6 +87,7 @@ export function getEffectiveModel(config) {
 export function isProviderConfigurationValid(config, providerId) {
   const normalized = normalizeProviderConfig(config, providerId);
   if (!normalized.apiKey || !getEffectiveModel(normalized)) return false;
+  // List mode accepts only models verified by the last successful discovery call.
   if (normalized.modelSelectionMode === "list" && !normalized.availableModels.includes(normalized.selectedModel)) return false;
   if (isCustomProviderId(providerId)) {
     return Boolean(normalized.name && validateCustomBaseUrl(normalized.baseUrl).valid);
@@ -91,6 +96,7 @@ export function isProviderConfigurationValid(config, providerId) {
 }
 
 export function selectAvailableModel(storedSettings, providerId, model) {
+  // Normalize a copy first; model switching must not mutate caller-owned state.
   const settings = normalizeSettings(storedSettings);
   const config = settings.providers[providerId];
   const selectedModel = typeof model === "string" ? model.trim() : "";
@@ -102,6 +108,7 @@ export function selectAvailableModel(storedSettings, providerId, model) {
 }
 
 function migrateLegacySettings(legacy) {
+  // Versions before multi-provider support stored a single DeepSeek config.
   const settings = createEmptySettings();
   if (!legacy || typeof legacy !== "object" || typeof legacy.apiKey !== "string" || !legacy.apiKey.trim()) return settings;
   const availableModels = normalizeModelList(legacy.availableModels);
@@ -121,6 +128,7 @@ function migrateLegacySettings(legacy) {
 export async function getSettings() {
   const result = await chrome.storage.local.get([SETTINGS_KEY, LEGACY_SETTINGS_KEY]);
   if (result[SETTINGS_KEY]) return normalizeSettings(result[SETTINGS_KEY]);
+  // Persist migration once so subsequent reads use the current schema directly.
   const migrated = migrateLegacySettings(result[LEGACY_SETTINGS_KEY]);
   await chrome.storage.local.set({ [SETTINGS_KEY]: migrated });
   return migrated;
@@ -135,6 +143,7 @@ export async function clearSettings() {
 }
 
 export async function getPendingSelection() {
+  // Session storage intentionally clears browsing context when Chrome exits.
   const result = await chrome.storage.session.get(PENDING_SELECTION_KEY);
   return result[PENDING_SELECTION_KEY] || null;
 }

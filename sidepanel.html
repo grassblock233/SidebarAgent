@@ -10,6 +10,7 @@
   </head>
   <body>
     <div class="app-shell">
+      <!-- Fixed product header and page-level actions -->
       <header class="workspace-header">
         <div class="product-mark" aria-label="SidebarAgent">
           <img src="assets/icon-32.png" alt="">
@@ -28,6 +29,7 @@
         </nav>
       </header>
 
+      <!-- Configuration state -->
       <div id="setupNotice" class="setup-notice" hidden>
         <div class="notice-copy">
           <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4m0 4h.01"/></svg>
@@ -36,6 +38,7 @@
         <button id="setupButton" type="button">前往设置</button>
       </div>
 
+      <!-- Current page context; expansion overlays the conversation below. -->
       <div id="sourceDock" class="source-dock" hidden>
         <section id="sourcePanel" class="source-panel" aria-label="当前网页上下文">
           <div class="source-heading-row">
@@ -64,6 +67,7 @@
         </section>
       </div>
 
+      <!-- Context-aware prompt shortcuts -->
       <section id="quickActions" class="quick-actions" hidden aria-label="针对当前页面的快捷操作">
         <button type="button" data-action="explain">
           <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M9.5 9a2.6 2.6 0 1 1 4.3 2c-1 .7-1.8 1.2-1.8 2.5M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
@@ -79,6 +83,7 @@
         </button>
       </section>
 
+      <!-- The only primary scrolling region -->
       <main id="content" class="content">
         <div id="emptyState" class="empty-state">
           <div class="empty-visual" aria-hidden="true">
@@ -98,6 +103,7 @@
         </div>
       </main>
 
+      <!-- Fixed composer and model selector -->
       <footer class="composer-dock">
         <div class="composer-surface">
           <div class="composer">

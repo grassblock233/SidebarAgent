@@ -1,3 +1,5 @@
+// Provider definitions are pure data. Secrets live only in normalized storage
+// configs and are never merged into these shared descriptors.
 export const BUILTIN_PROVIDERS = Object.freeze({
   deepseek: Object.freeze({
     id: "deepseek",
@@ -61,6 +63,7 @@ export function validateCustomBaseUrl(baseUrl) {
     return { valid: false, message: "Base URL 格式不正确。" };
   }
 
+  // Plain HTTP is acceptable only for a loopback development endpoint.
   const isLocalHttp = url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname);
   if (url.protocol !== "https:" && !isLocalHttp) {
     return { valid: false, message: "远程自定义接口必须使用 HTTPS；HTTP 仅允许本机地址。" };
@@ -72,6 +75,7 @@ export function validateCustomBaseUrl(baseUrl) {
 export function getOriginPattern(baseUrl) {
   const validation = validateCustomBaseUrl(baseUrl);
   if (!validation.valid) return "";
+  // Request the smallest reusable Chrome origin pattern; paths are not needed.
   return `${validation.url.protocol}//${validation.url.hostname}/*`;
 }
 
@@ -79,6 +83,7 @@ export function resolveProvider(providerId, providerConfig = {}) {
   if (BUILTIN_PROVIDERS[providerId]) return BUILTIN_PROVIDERS[providerId];
   if (!isCustomProviderId(providerId)) return null;
 
+  // Invalid custom endpoints resolve to null so callers cannot issue requests.
   const validation = validateCustomBaseUrl(providerConfig.baseUrl);
   if (!validation.valid) return null;
   return {

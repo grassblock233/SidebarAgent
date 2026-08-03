@@ -1,3 +1,4 @@
+/* Panel-only layout colors extend the shared brand tokens from theme.css. */
 :root {
   --panel-bg: #f7f8f7;
   --paper: #ffffff;
@@ -7,9 +8,9 @@
   --text-muted: #7a8580;
   --border: #dde3df;
   --border-strong: #c8d0cc;
-  --teal: #187967;
-  --teal-hover: #126555;
-  --teal-soft: #e7f4f0;
+  --teal: var(--accent-ink);
+  --teal-hover: var(--accent-ink);
+  --teal-soft: var(--accent-soft);
   --blue-soft: #edf4fa;
   --blue-border: #d5e3ee;
   --amber-soft: #fff7e4;
@@ -34,6 +35,7 @@ body {
   color: var(--text);
 }
 
+/* Fixed six-row shell: only the conversation row is allowed to grow and scroll. */
 .app-shell {
   position: fixed;
   inset: 0;
@@ -54,6 +56,7 @@ svg {
   stroke-linejoin: round;
 }
 
+/* Product header and page-level tools. */
 .workspace-header {
   grid-row: 1;
   display: flex;
@@ -109,6 +112,7 @@ svg {
 .icon-button.is-capturing { background: var(--teal-soft); color: var(--teal); opacity: 1; }
 .icon-button.is-capturing svg { animation: capture-pulse 900ms ease-in-out infinite alternate; }
 
+/* Provider configuration warning. */
 .setup-notice {
   grid-row: 2;
   align-items: center;
@@ -143,6 +147,7 @@ svg {
 .setup-notice button:hover,
 .error-panel button:hover { background: rgba(255, 255, 255, .6); }
 
+/* Source preview overlays downward when expanded, preserving conversation space. */
 .source-dock {
   grid-row: 3;
   position: relative;
@@ -292,6 +297,7 @@ svg {
 
 .source-dock:not(.is-expanded) .truncated-notice { display: none !important; }
 
+/* Three stable columns avoid horizontal scrolling in narrow panels. */
 .quick-actions {
   grid-row: 4;
   display: grid;
@@ -327,6 +333,7 @@ svg {
 .quick-actions button:active:not(:disabled) { transform: translateY(1px); }
 .quick-actions button:disabled { cursor: not-allowed; opacity: .45; }
 
+/* Conversation is the only primary vertical scroll container. */
 .content {
   grid-row: 5;
   min-height: 0;
@@ -345,6 +352,7 @@ svg {
 .source-text::-webkit-scrollbar-thumb,
 .markdown-table-wrap::-webkit-scrollbar-thumb { border-radius: 4px; background: #b7c1bc; }
 
+/* Empty workspace doubles as the primary capture entry point. */
 .empty-state {
   display: grid;
   align-content: center;
@@ -378,8 +386,8 @@ svg {
   padding: 7px 11px;
   border: 1px solid var(--teal);
   border-radius: 6px;
-  background: var(--teal);
-  color: #fff;
+  background: var(--accent);
+  color: var(--accent-ink);
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
@@ -388,11 +396,12 @@ svg {
 }
 
 .empty-capture-button svg { width: 15px; height: 15px; }
-.empty-capture-button:hover:not(:disabled) { background: var(--teal-hover); box-shadow: 0 4px 13px rgba(24, 121, 103, .24); }
+.empty-capture-button:hover:not(:disabled) { background: var(--accent-hover); box-shadow: 0 4px 13px rgba(39, 111, 98, .2); }
 .empty-capture-button:active:not(:disabled) { transform: translateY(1px); }
 .empty-capture-button:disabled { cursor: not-allowed; opacity: .55; }
 .empty-capture-button.is-capturing svg { animation: capture-pulse 900ms ease-in-out infinite alternate; }
 
+/* Conversation messages and safe Markdown output. */
 .messages { display: grid; gap: 24px; }
 .message { min-width: 0; }
 .message.user { display: grid; justify-items: end; }
@@ -407,7 +416,7 @@ svg {
 
 .message.user .message-heading { width: min(88%, 620px); }
 .message-role { display: flex; align-items: center; gap: 6px; color: var(--text-muted); font-size: 10px; font-weight: 730; }
-.message-role::before { width: 6px; height: 6px; border-radius: 50%; background: #36a68f; content: ""; }
+.message-role::before { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); content: ""; }
 .message.user .message-role::before { background: #668fb0; }
 .message-actions { display: flex; gap: 1px; opacity: .58; transition: opacity var(--ease); }
 .message:hover .message-actions,
@@ -440,7 +449,7 @@ svg {
 .message-body ol { margin: 7px 0 10px; padding-left: 21px; }
 .message-body li { margin: 3px 0; }
 .message-body a { color: #25658f; }
-.message-body blockquote { margin: 9px 0; padding: 7px 10px; border-left: 3px solid #65b7a6; background: var(--teal-soft); color: var(--text-soft); }
+.message-body blockquote { margin: 9px 0; padding: 7px 10px; border-left: 3px solid var(--accent); background: var(--teal-soft); color: var(--text-soft); }
 .message-body code { padding: 1px 4px; border-radius: 3px; background: #e8ecea; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
 .message-body pre { max-width: 100%; margin: 10px 0; padding: 11px; overflow-x: auto; border: 1px solid #35413c; border-radius: 6px; background: #202925; color: #f4f7f5; }
 .message-body pre code { padding: 0; background: none; color: inherit; }
@@ -483,6 +492,7 @@ svg {
 
 .error-panel:not([hidden]) { display: flex; }
 
+/* Composer remains fixed while messages and long source content scroll separately. */
 .composer-dock {
   grid-row: 6;
   position: relative;
@@ -515,7 +525,7 @@ svg {
   transition: border-color var(--ease), box-shadow var(--ease);
 }
 
-.composer:focus-within { border-color: #5cae9c; box-shadow: 0 0 0 3px rgba(71, 162, 143, .15), var(--shadow-low); }
+.composer:focus-within { border-color: var(--accent-ink); box-shadow: var(--focus-ring), var(--shadow-low); }
 .composer textarea { width: 100%; height: 34px !important; min-height: 34px; max-height: 34px; padding: 7px 0; overflow-y: auto; resize: none; border: 0; outline: 0; background: transparent; color: var(--text); font-size: 13px; line-height: 1.45; }
 .composer textarea::placeholder { color: #929b96; }
 
@@ -527,14 +537,14 @@ svg {
   padding: 0;
   border: 0;
   border-radius: 6px;
-  background: var(--teal);
-  color: #fff;
+  background: var(--accent);
+  color: var(--accent-ink);
   cursor: pointer;
   box-shadow: 0 3px 8px rgba(24, 121, 103, .18);
   transition: background-color var(--ease), transform var(--ease);
 }
 
-.action-button:hover:not(:disabled) { background: var(--teal-hover); }
+.action-button:hover:not(:disabled) { background: var(--accent-hover); }
 .action-button:active:not(:disabled) { transform: translateY(1px); }
 .action-button:disabled { background: #dce3e0; color: #89938e; cursor: not-allowed; box-shadow: none; }
 .action-button.is-generating { background: var(--danger); color: #fff; }
@@ -554,6 +564,7 @@ svg {
   font-size: 10px;
 }
 
+/* Custom picker mirrors a visually hidden native select used as canonical state. */
 .model-select-control {
   position: relative;
   display: flex;
@@ -565,7 +576,7 @@ svg {
   color: var(--text-soft);
 }
 
-.model-status-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: #39a88f; }
+.model-status-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
 .model-picker-button {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);

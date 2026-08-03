@@ -1,3 +1,5 @@
+"""Generate deterministic Chrome icon sizes from the canonical SidebarAgent logo."""
+
 from pathlib import Path
 
 from PIL import Image
@@ -17,6 +19,7 @@ SMALL_ICON_CROPS = {
 
 
 def square_crop_with_padding(image: Image.Image, padding_ratio: float = 0.10) -> Image.Image:
+    """Crop transparent margins into a centered square with proportional padding."""
     rgba = image.convert("RGBA")
     bounds = rgba.getbbox()
     if not bounds:
@@ -35,6 +38,7 @@ def square_crop_with_padding(image: Image.Image, padding_ratio: float = 0.10) ->
 
 
 def normalized_crop(image: Image.Image, bounds: tuple[float, float, float, float]) -> Image.Image:
+    """Convert resolution-independent crop coordinates into source pixels."""
     left, top, right, bottom = bounds
     return image.crop(
         (
@@ -47,6 +51,7 @@ def normalized_crop(image: Image.Image, bounds: tuple[float, float, float, float
 
 
 def main() -> None:
+    """Generate every manifest icon from the checked-in source image."""
     if not SOURCE.exists():
         raise FileNotFoundError(f"Missing source logo: {SOURCE}")
 

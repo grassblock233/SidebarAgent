@@ -1,3 +1,4 @@
+// Pure view-state helper kept separate so rapid send/stop transitions are easy to test.
 export function getActionButtonState({ busy, submitting, hasSource, hasText }) {
   if (busy) {
     return {

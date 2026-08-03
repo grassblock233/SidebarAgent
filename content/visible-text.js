@@ -1,3 +1,5 @@
+// Injected on demand into the active tab. The IIFE return value is sent back by
+// chrome.scripting.executeScript, so this file must remain self-contained.
 (() => {
   const MAX_OUTPUT_CHARS = 12_000;
   const MAX_INSPECTED_SEGMENTS = 50_000;
@@ -15,6 +17,8 @@
   }
 
   function visibleBounds(element) {
+    // Intersect every clipping ancestor with the viewport. Geometry outside an
+    // overflow container is not visible even when the text node itself exists.
     const bounds = { ...viewport };
     for (let current = element; current && current !== document.documentElement; current = current.parentElement) {
       if (ignoredTags.has(current.tagName) || current.hidden || current.getAttribute("aria-hidden") === "true") return null;
@@ -39,6 +43,8 @@
   }
 
   function textSegments(text) {
+    // Segmenting prevents a partially visible long text node from being treated
+    // as wholly visible. The regex fallback preserves CJK character boundaries.
     if (segmenter) return [...segmenter.segment(text)].map(({ segment, index }) => ({ segment, index }));
     const segments = [];
     const pattern = /\s+|[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]|[^\s\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]+/gu;
@@ -55,6 +61,7 @@
     if (elementRect.width > 0 && elementRect.height > 0 && !intersects(elementRect, bounds)) return "";
 
     const visible = [];
+    // Range rectangles provide rendered positions for individual word segments.
     for (const { segment, index } of textSegments(node.data)) {
       inspectedSegments += 1;
       if (inspectedSegments > MAX_INSPECTED_SEGMENTS) break;
@@ -69,6 +76,7 @@
     return visible.join("").replace(/[ \t]+/g, " ").trim();
   }
 
+  // TreeWalker preserves document order without copying or mutating page nodes.
   const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT);
   while (walker.nextNode() && inspectedSegments <= MAX_INSPECTED_SEGMENTS) {
     const text = visibleTextFromNode(walker.currentNode);
@@ -78,6 +86,7 @@
     parts.push({ text, block });
   }
 
+  // Preserve block boundaries while keeping inline fragments readable as prose.
   let combined = "";
   for (const part of parts) {
     if (combined) combined += part.block ? "\n" : " ";

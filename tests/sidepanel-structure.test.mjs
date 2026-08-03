@@ -6,6 +6,16 @@ const html = fs.readFileSync(new URL("../sidepanel.html", import.meta.url), "utf
 const css = fs.readFileSync(new URL("../sidepanel.css", import.meta.url), "utf8");
 const themeCss = fs.readFileSync(new URL("../shared/theme.css", import.meta.url), "utf8");
 
+test("shared brand theme remains the SidebarAgent mint palette", () => {
+  assert.match(themeCss, /--accent:\s*#86e3ce;/i);
+  assert.match(themeCss, /--accent-hover:\s*#6fd4bd;/i);
+  assert.match(themeCss, /--accent-soft:\s*#eafaf6;/i);
+  assert.match(themeCss, /--accent-ink:\s*#174f44;/i);
+  assert.match(themeCss, /--focus-ring:\s*0 0 0 3px rgba\(134, 227, 206, \.3\);/i);
+  assert.match(css, /\.empty-capture-button\s*\{[^}]*background:\s*var\(--accent\);/);
+  assert.match(css, /\.action-button\s*\{[^}]*background:\s*var\(--accent\);/);
+});
+
 test("side panel uses a compact workspace header and one action button", () => {
   assert.match(html, /id="actionButton"/);
   assert.doesNotMatch(html, /id="sendButton"|id="stopButton"/);

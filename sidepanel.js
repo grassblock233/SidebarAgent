@@ -1,3 +1,5 @@
+// Side-panel controller: renders trusted DOM nodes, owns the conversation state
+// machine and coordinates storage, permissions and streaming provider requests.
 import {
   MAX_CONTEXT_CHARS,
   DEFAULT_PROVIDER_ID,
@@ -26,6 +28,7 @@ import { getActionButtonState } from "./shared/ui-state.js";
 
 const CONFIGURATION_ERROR = "请先配置 API Key 并选择一个可用模型。";
 
+// Cache controls once; render functions update these nodes without querying again.
 const elements = {
   clearButton: document.querySelector("#clearButton"),
   captureViewportButton: document.querySelector("#captureViewportButton"),
@@ -63,6 +66,8 @@ const elements = {
   characterCount: document.querySelector("#characterCount")
 };
 
+// Ephemeral UI/request state lives here. Persistent settings and session data are
+// loaded through shared/storage.js and normalized before entering this object.
 const state = {
   source: null,
   messages: [],
@@ -98,6 +103,7 @@ function isSafeWebUrl(url) {
 }
 
 function appendInline(parent, text) {
+  // Build DOM nodes instead of using innerHTML because model output is untrusted.
   const pattern = /(`[^`\n]+`|\*\*[^*\n]+\*\*)/g;
   let lastIndex = 0;
 
@@ -161,6 +167,7 @@ function renderTable(container, tableData) {
 }
 
 function renderMarkdown(container, text) {
+  // This intentionally supports a small Markdown subset with predictable output.
   container.replaceChildren();
   const lines = text.replace(/\r\n?/g, "\n").split("\n");
   let index = 0;
@@ -333,6 +340,7 @@ function renderMessages() {
   });
 
   if (state.messages.length) {
+    // Scroll after layout so streamed content remains visible without moving fixed UI.
     requestAnimationFrame(() => {
       elements.content.scrollTop = elements.content.scrollHeight;
     });
@@ -340,6 +348,7 @@ function renderMessages() {
 }
 
 function scheduleMessageRender() {
+  // Coalesce rapid SSE deltas into at most one DOM rebuild per animation frame.
   if (state.renderQueued) return;
   state.renderQueued = true;
   requestAnimationFrame(() => {
@@ -387,6 +396,7 @@ function renderSource() {
 }
 
 function scheduleSourceOverflowMeasure() {
+  // Measure after paint; clamp-based overflow is not reliable before layout settles.
   if (!state.source || state.sourceExpanded || state.sourceMeasureQueued) return;
   state.sourceMeasureQueued = true;
   requestAnimationFrame(() => {
@@ -401,6 +411,7 @@ function scheduleSourceOverflowMeasure() {
 }
 
 function renderControls() {
+  // A single render path keeps visible, disabled and accessibility states synchronized.
   const configured = Boolean(state.hasApiKey && state.selectedModel);
   const preparing = state.submitting && !state.busy;
   const actionState = getActionButtonState({
@@ -455,6 +466,7 @@ function resizeComposer() {
 }
 
 async function persistSession() {
+  // Conversation data is session-scoped so page content does not survive browser exit.
   if (!state.source) return;
   await saveConversationSession({
     source: state.source,
@@ -470,6 +482,7 @@ function stopActiveRequest(reason) {
 }
 
 async function applySelection(source) {
+  // A new source defines a new conversation and cancels any reply for the old source.
   if (!source || source.id === state.source?.id) return;
   stopActiveRequest("new-selection");
   state.source = source;
@@ -493,6 +506,8 @@ function buildApiMessages() {
     JSON.stringify(state.source.text)
   ].join("\n");
 
+  // Keep the source and newest conversation turns within a conservative character
+  // budget. This is a transport guard, not a provider-specific token estimator.
   const recentMessages = [];
   let characterBudget = MAX_CONTEXT_CHARS - SYSTEM_PROMPT.length - sourceMessage.length;
   for (let index = state.messages.length - 1; index >= 0; index -= 1) {
@@ -535,6 +550,8 @@ async function runAssistantReply() {
     return;
   }
 
+  // Snapshot provider, model and messages at request start. Later UI changes apply
+  // only to the next request and cannot alter the active stream.
   const providerId = settings.activeProviderId;
   const providerConfig = settings.providers[providerId];
   const provider = resolveProvider(providerId, providerConfig);
@@ -600,6 +617,7 @@ async function submitQuestion(question) {
   elements.questionInput.value = "";
   resizeComposer();
   try {
+    // Save the user turn before network I/O so a failed request remains retryable.
     await persistSession();
   } catch {
     state.error = "无法保存当前问题，请重试。";
@@ -658,6 +676,7 @@ async function captureViewportText() {
       state.capturePermissionOrigin = origin;
     }
     if (origin) {
+      // Site access is requested only from this click flow to preserve user gesture.
       let granted;
       try {
         granted = await chrome.permissions.request({ origins: [origin] });
@@ -690,6 +709,8 @@ function openSettings() {
 }
 
 function renderModelSelect() {
+  // The hidden native select remains the canonical value and event source; the
+  // custom picker provides the compact visual interface and keyboard behavior.
   const select = elements.modelSelect;
   const isListMode = state.modelSelectionMode === "list";
   const currentModelIsAvailable = state.availableModels.includes(state.selectedModel);
@@ -788,6 +809,7 @@ async function changeSelectedModel(model) {
   let restorePreviousModel = true;
   renderControls();
   try {
+    // Re-read storage to avoid overwriting provider changes made in the options tab.
     const latestSettings = await getSettings();
     if (latestSettings.activeProviderId !== providerId) {
       applySettings(latestSettings);
@@ -823,6 +845,7 @@ function applySettings(settings) {
     : "";
 }
 
+// User interaction and cross-context storage events enter the state machine here.
 elements.settingsButton.addEventListener("click", openSettings);
 elements.setupButton.addEventListener("click", openSettings);
 elements.captureViewportButton.addEventListener("click", captureViewportText);
@@ -905,6 +928,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 });
 
 async function initialize() {
+  // Load independent storage areas concurrently, then let a newer pending selection
+  // override the restored conversation source.
   const [settings, session, pendingSelection] = await Promise.all([
     getSettings(),
     getConversationSession(),

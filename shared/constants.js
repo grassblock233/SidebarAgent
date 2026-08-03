@@ -1,3 +1,5 @@
+// Shared keys and limits form contracts between the service worker, settings
+// page and side panel. Storage key changes require an explicit migration.
 export const MENU_ID = "deepseek-analyze-selection";
 export const SETTINGS_KEY = "sidebarAgentSettings";
 export const LEGACY_SETTINGS_KEY = "deepseekSettings";
@@ -11,6 +13,7 @@ export const MAX_CONTEXT_CHARS = 60_000;
 export const REQUEST_TIMEOUT_MS = 120_000;
 export const MODEL_FETCH_TIMEOUT_MS = 30_000;
 
+// Treat webpage text as untrusted quoted material to reduce prompt injection risk.
 export const SYSTEM_PROMPT = `你是一个帮助用户理解网页内容的 AI 助手。
 请遵守以下规则：
 1. 使用与用户问题相同的语言回答，除非用户明确指定其他语言。

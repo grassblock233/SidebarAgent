@@ -10,11 +10,13 @@
   </head>
   <body>
     <main class="settings-page">
+      <!-- Product identity -->
       <header class="settings-header">
         <img class="brand-mark" src="assets/icon-48.png" alt="">
         <div><h1>SidebarAgent</h1><p>AI 提供商与模型</p></div>
       </header>
 
+      <!-- Provider selection is separate from the selected provider's draft. -->
       <section class="settings-section" aria-labelledby="providerHeading">
         <div class="section-heading provider-heading-row">
           <h2 id="providerHeading">AI 提供商</h2>
@@ -28,6 +30,7 @@
         <p id="providerEndpoint" class="endpoint-text"></p>
       </section>
 
+      <!-- Credentials and models are persisted only through the form actions. -->
       <section class="settings-section" aria-labelledby="configurationHeading">
         <div class="section-heading configuration-heading">
           <h2 id="configurationHeading">API 配置</h2>

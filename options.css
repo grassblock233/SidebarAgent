@@ -1,3 +1,4 @@
+/* Settings page shell and product identity. */
 body { margin: 0; border-top: 4px solid var(--accent); background: var(--surface-muted); }
 
 .settings-page { width: min(760px, calc(100% - 32px)); margin: 0 auto; padding: 48px 0 70px; }
@@ -6,6 +7,7 @@ body { margin: 0; border-top: 4px solid var(--accent); background: var(--surface
 .settings-header h1 { margin: 0; color: var(--ink); font-size: 21px; font-weight: 760; letter-spacing: 0; }
 .settings-header p { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
 
+/* Provider and configuration sections. */
 .settings-section { padding: 28px 0; border-top: 1px solid var(--line); }
 .settings-section:last-of-type { border-bottom: 1px solid var(--line); }
 .section-heading { margin-bottom: 20px; }
@@ -31,6 +33,7 @@ body { margin: 0; border-top: 4px solid var(--accent); background: var(--surface
 .provider-picker button, .compact-button { min-height: 36px; padding: 7px 10px; border-radius: var(--radius-control); font-size: 12px; cursor: pointer; }
 .endpoint-text { margin: 9px 0 0; overflow-wrap: anywhere; color: var(--subtle); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
 
+/* Shared form controls and grouped configuration fields. */
 form label { display: block; margin-bottom: 7px; color: #34423c; font-size: 12px; font-weight: 700; }
 .text-input {
   width: 100%;
@@ -79,6 +82,7 @@ form label { display: block; margin-bottom: 7px; color: #34423c; font-size: 12px
 .model-control-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 7px; }
 .model-control-row .secondary-button { min-height: 42px; white-space: nowrap; }
 
+/* Save, activate and destructive actions stay visually separated. */
 .form-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 24px; border-top: 1px solid var(--line); }
 .commit-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .primary-button, .secondary-button, .danger-button { min-height: 36px; padding: 7px 13px; border-radius: var(--radius-control); font-size: 12px; font-weight: 650; cursor: pointer; transition: color var(--ease-ui), background-color var(--ease-ui), border-color var(--ease-ui), box-shadow var(--ease-ui), transform var(--ease-ui); }
@@ -100,6 +104,7 @@ form label { display: block; margin-bottom: 7px; color: #34423c; font-size: 12px
   .icon-button:active, .form-actions button:active, .provider-picker button:active { transform: none; }
 }
 
+/* Collapse paired fields before labels or controls become cramped. */
 @media (max-width: 520px) {
   .settings-page { width: min(100% - 24px, 760px); padding-top: 28px; }
   .provider-picker { grid-template-columns: 1fr auto; }

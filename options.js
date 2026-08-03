@@ -1,3 +1,5 @@
+// Settings-page controller. Edits stay in an in-memory draft until the user
+// saves, so failed model discovery cannot overwrite a working provider config.
 import { DEFAULT_PROVIDER_ID, MODEL_FETCH_TIMEOUT_MS } from "./shared/constants.js";
 import { fetchModels } from "./shared/openai-compatible-client.js";
 import {
@@ -17,6 +19,7 @@ import {
   saveSettings
 } from "./shared/storage.js";
 
+// Keep DOM lookups centralized so rendering functions operate on stable controls.
 const elements = {
   providerSelect: document.querySelector("#providerSelect"),
   activeProviderBadge: document.querySelector("#activeProviderBadge"),
@@ -43,6 +46,7 @@ const elements = {
   statusMessage: document.querySelector("#statusMessage")
 };
 
+// appSettings is the persisted snapshot; workingConfig is the current form draft.
 let appSettings = createEmptySettings();
 let currentProviderId = DEFAULT_PROVIDER_ID;
 let workingConfig = normalizeProviderConfig(null, currentProviderId);
@@ -57,11 +61,13 @@ function setStatus(message, isError = false) {
 }
 
 function providerFingerprint(config, provider) {
+  // A cached model list is trusted only for the exact key and discovery endpoint.
   if (!provider) return "";
   return [config.apiKey, provider.baseUrl, provider.modelsPath].join("\n");
 }
 
 function getDraftConfig() {
+  // Read and normalize the form as one object before validation or persistence.
   const isCustom = isCustomProviderId(currentProviderId);
   const supportsDiscovery = isCustom ? elements.supportsModelDiscovery.checked : true;
   return normalizeProviderConfig({
@@ -143,6 +149,7 @@ function isListTrusted(config, provider) {
 }
 
 function renderState() {
+  // Derive all enabled, hidden and status states from the current draft.
   const busy = Boolean(fetchController);
   const config = getDraftConfig();
   const provider = currentProvider(config);
@@ -193,6 +200,7 @@ function renderState() {
 }
 
 function loadProvider(providerId) {
+  // Provider switches discard unsaved form edits by reloading the stored snapshot.
   currentProviderId = providerId;
   workingConfig = normalizeProviderConfig(appSettings.providers[providerId], providerId);
   const provider = resolveProvider(providerId, workingConfig);
@@ -215,6 +223,7 @@ function loadProvider(providerId) {
 }
 
 async function ensureCustomPermission(config) {
+  // Built-ins are declared in host_permissions; custom origins are requested lazily.
   if (!isCustomProviderId(currentProviderId)) return true;
   const origin = getOriginPattern(config.baseUrl);
   if (!origin) return false;
@@ -222,6 +231,7 @@ async function ensureCustomPermission(config) {
 }
 
 async function persistDraft({ activate = false } = {}) {
+  // Saving and activating are distinct operations so users can prepare providers.
   const config = getDraftConfig();
   const provider = currentProvider(config);
   const valid = isProviderConfigurationValid(config, currentProviderId) &&
@@ -247,6 +257,7 @@ async function persistDraft({ activate = false } = {}) {
 }
 
 async function handleFetchModels() {
+  // Clicking the same button while a request is active acts as explicit cancel.
   if (fetchController) {
     fetchStopReason = "user";
     fetchController.abort();
@@ -280,6 +291,8 @@ async function handleFetchModels() {
       : !missingSelectedModel && models.includes(provider.defaultModel)
         ? provider.defaultModel
         : "";
+    // Commit discovery only after a complete valid response. Existing persisted
+    // configuration remains untouched when the request fails or is cancelled.
     workingConfig = normalizeProviderConfig({
       ...config,
       selectedModel,
@@ -306,6 +319,7 @@ async function handleFetchModels() {
 }
 
 async function addCustomProvider() {
+  // Persist the empty shell immediately so it remains selectable across reloads.
   const providerId = `custom:${crypto.randomUUID()}`;
   appSettings.providers[providerId] = normalizeProviderConfig({
     type: "custom",
@@ -338,6 +352,7 @@ async function deleteCustomProvider() {
   await saveSettings(appSettings);
 
   if (origin) {
+    // Revoke an optional origin only when no other custom provider still uses it.
     const stillUsed = Object.entries(appSettings.providers).some(([id, config]) =>
       isCustomProviderId(id) && getOriginPattern(config.baseUrl) === origin
     );
@@ -348,6 +363,7 @@ async function deleteCustomProvider() {
 }
 
 async function clearCurrentProvider() {
+  // Clearing credentials preserves custom endpoint metadata for easy reconfiguration.
   const old = getDraftConfig();
   workingConfig = normalizeProviderConfig(isCustomProviderId(currentProviderId) ? {
     type: "custom",
@@ -363,6 +379,7 @@ async function clearCurrentProvider() {
   setStatus("当前提供商的 API Key 和模型配置已清除。");
 }
 
+// Event wiring is kept at the bottom to make startup order explicit.
 elements.providerSelect.addEventListener("change", () => selectProvider(elements.providerSelect.value));
 elements.deleteCustomButton.addEventListener("click", deleteCustomProvider);
 elements.settingsForm.addEventListener("submit", (event) => { event.preventDefault(); persistDraft(); });
