@@ -60,7 +60,7 @@ export interface ConversationMessage {
 }
 
 export interface ConversationSession {
-  source: SourceContext;
+  source: SourceContext | null;
   messages: ConversationMessage[];
   updatedAt: number;
 }

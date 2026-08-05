@@ -4,7 +4,7 @@ export default defineManifest({
   manifest_version: 3,
   name: "SidebarAgent",
   version: "0.7.0",
-  description: "在浏览网页时，将选中文字发送到 SidebarAgent，并使用所选 AI 提供商进行分析。",
+  description: "直接与 AI 对话，或将网页选中文字发送到 SidebarAgent 进行分析。",
   minimum_chrome_version: "116",
   permissions: ["activeTab", "contextMenus", "sidePanel", "scripting", "storage", "tabs"],
   host_permissions: [

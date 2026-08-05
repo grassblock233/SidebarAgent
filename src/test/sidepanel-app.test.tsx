@@ -60,7 +60,7 @@ function deferred<T>() {
 
 async function renderInitialized(session: ConversationSession | null = { source: source(), messages: [], updatedAt: 1 }) {
   render(<App />);
-  const input = await screen.findByPlaceholderText("询问当前页面…");
+  const input = await screen.findByPlaceholderText("输入问题，或询问当前页面…");
   if (session?.source) await waitFor(() => expect(input).toBeEnabled());
   return input;
 }
@@ -73,6 +73,22 @@ beforeEach(() => {
   mocks.clearConversationSession.mockResolvedValue(undefined);
   mocks.saveConversationSession.mockResolvedValue(undefined);
   mocks.streamChat.mockResolvedValue(undefined);
+});
+
+it("allows chatting without a page source", async () => {
+  mocks.getConversationSession.mockResolvedValueOnce(null);
+  const input = await renderInitialized(null);
+
+  expect(input).toBeEnabled();
+  expect(screen.getByRole("button", { name: "发送" })).toBeDisabled();
+  await userEvent.type(input, "general question");
+  await userEvent.click(screen.getByRole("button", { name: "发送" }));
+
+  await waitFor(() => expect(mocks.streamChat).toHaveBeenCalledOnce());
+  expect(mocks.streamChat).toHaveBeenCalledWith(expect.objectContaining({
+    messages: expect.not.arrayContaining([expect.objectContaining({ content: expect.stringContaining("网页标题：") })])
+  }));
+  expect(mocks.saveConversationSession).toHaveBeenCalledWith(expect.objectContaining({ source: null }));
 });
 
 it("locks duplicate submits and allows stopping while preparing", async () => {
@@ -109,7 +125,7 @@ it("clears immediately during streaming without restoring stale output", async (
 
   await waitFor(() => expect(screen.queryByText("partial answer")).not.toBeInTheDocument());
   expect(screen.queryByText("question")).not.toBeInTheDocument();
-  expect(screen.getByText("读取页面，然后直接提问")).toBeInTheDocument();
+  expect(screen.getByText("直接提问，或读取页面")).toBeInTheDocument();
   expect(mocks.clearConversationSession).toHaveBeenCalledOnce();
 });
 
