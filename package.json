@@ -3,9 +3,46 @@
   "version": "0.7.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
   "scripts": {
-    "generate-icons": "python3 scripts/generate-icons.py",
-    "check": "node --check background.js && node --check sidepanel.js && node --check options.js && node --check content/visible-text.js && node --check shared/constants.js && node --check shared/providers.js && node --check shared/storage.js && node --check shared/openai-compatible-client.js && node --check shared/markdown-table.js && node --check shared/ui-state.js",
-    "test": "node --test"
+    "dev": "vite build --watch --mode development",
+    "build": "npm run typecheck && vite build && node scripts/verify-build.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run lint && npm test && npm run build",
+    "generate-icons": "python scripts/generate-icons.py"
+  },
+  "dependencies": {
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^10.0.0",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.0.0-beta.31",
+    "@eslint/js": "^9.17.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.1.0",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/chrome": "^0.0.287",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^4.1.10",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.14.0",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.1",
+    "vite": "^6.0.5",
+    "vitest": "^4.1.10"
   }
 }

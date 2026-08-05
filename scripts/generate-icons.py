@@ -8,6 +8,7 @@ from PIL import Image
 SIZES = (16, 32, 48, 128)
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets"
+PUBLIC_ASSETS = ROOT / "public" / "assets"
 SOURCE = ASSETS / "logo-source.png"
 
 # The full illustration reads well at larger sizes. Browser toolbar icons need a
@@ -57,10 +58,12 @@ def main() -> None:
 
     source = Image.open(SOURCE).convert("RGBA")
     full_logo = square_crop_with_padding(source)
+    PUBLIC_ASSETS.mkdir(parents=True, exist_ok=True)
     for size in SIZES:
         crop = normalized_crop(source, SMALL_ICON_CROPS[size]) if size in SMALL_ICON_CROPS else full_logo
         icon = crop.resize((size, size), Image.Resampling.LANCZOS)
-        icon.save(ASSETS / f"icon-{size}.png", optimize=True)
+        for output_dir in (ASSETS, PUBLIC_ASSETS):
+            icon.save(output_dir / f"icon-{size}.png", optimize=True)
     print(f"Generated {len(SIZES)} icons from {SOURCE.name}")
 
 
