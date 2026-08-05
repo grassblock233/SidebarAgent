@@ -28,8 +28,8 @@ export function MarkdownMessage({ content }: { content: string }) {
   );
 }
 
-export function MessageItem({ message, busy, onRegenerate, onCopied }: { message: ConversationMessage; busy: boolean; onRegenerate: () => void; onCopied: () => void }) {
-  const copy = async () => { await navigator.clipboard.writeText(message.content); onCopied(); };
+export function MessageItem({ message, busy, onRegenerate }: { message: ConversationMessage; busy: boolean; onRegenerate: () => void }) {
+  const copy = async () => { await navigator.clipboard.writeText(message.content); };
   return (
     <article className={`${styles.message} ${message.role === "user" ? styles.userMessage : styles.assistantMessage}`}>
       <header className={styles.messageHeader}>

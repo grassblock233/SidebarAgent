@@ -205,7 +205,7 @@ export default function App() {
       if (isCurrentConversation()) {
         const reason = abortRef.current?.requestId === requestId ? abortRef.current.reason : "";
         if (controller.signal.aborted || isAbortError(error)) {
-          dispatch({ type: "feedback", error: reason === "timeout" ? "请求超过 120 秒，已自动停止。" : undefined, status: reason === "user" ? "已停止生成" : undefined });
+          dispatch({ type: "feedback", error: reason === "timeout" ? "请求超过 120 秒，已自动停止。" : undefined });
         } else {
           dispatch({ type: "feedback", error: errorMessage(error, "请求失败，请稍后重试。") });
         }
@@ -237,7 +237,6 @@ export default function App() {
   const capture = useCallback(async () => {
     if (stateRef.current.capture.status !== "idle") return;
     dispatch({ type: "capture", capture: { status: "requesting-permission" } });
-    dispatch({ type: "feedback", status: "正在读取当前屏幕文字" });
     try {
       const tab = await getActiveTab();
       if (!tab?.url) throw new Error("无法确定当前网页地址。");
@@ -249,7 +248,6 @@ export default function App() {
       const response = await requestVisibleText();
       if (!response.ok) throw new Error(response.error);
       await applySource(response.source);
-      dispatch({ type: "feedback", status: response.source.truncated || response.source.htmlTruncated ? "已读取当前屏幕文字，内容已按长度上限截取" : "已读取当前屏幕文字" });
     } catch (error) {
       dispatch({ type: "feedback", error: errorMessage(error, "读取当前屏幕文字失败。") });
     } finally { dispatch({ type: "capture", capture: { status: "idle" } }); }
@@ -271,7 +269,7 @@ export default function App() {
   const changeModel = async (model: string) => {
     if (!state.settings || state.modelSwitching || abortRef.current) return;
     dispatch({ type: "model-switching", value: true });
-    try { const updated = selectAvailableModel(await getSettings(), state.settings.activeProviderId, model); await saveSettings(updated); dispatch({ type: "settings", settings: updated }); dispatch({ type: "feedback", status: `已切换模型：${model}` }); }
+    try { const updated = selectAvailableModel(await getSettings(), state.settings.activeProviderId, model); await saveSettings(updated); dispatch({ type: "settings", settings: updated }); }
     catch (error) { dispatch({ type: "feedback", error: `切换模型失败：${errorMessage(error, "请重试。")}` }); }
     finally { dispatch({ type: "model-switching", value: false }); }
   };
@@ -293,18 +291,17 @@ export default function App() {
     </section>}
     <main ref={contentRef} className={styles.content} onScroll={() => { const element = contentRef.current; if (element) followOutputRef.current = element.scrollHeight - element.scrollTop - element.clientHeight <= AUTO_FOLLOW_THRESHOLD_PX; }}>
       {!state.source && !state.messages.length && <div className={styles.empty}><Bot size={36} /><h1>直接提问，或读取页面</h1><p>可以直接开始对话，也可以选中文字或读取当前视口内的网页文字后继续追问。</p><button onClick={() => void capture()}><FileSearch size={16} />读取当前页面</button></div>}
-      <div className={styles.messages}>{state.messages.map((message) => <MessageItem key={message.id} message={message} busy={busy} onRegenerate={regenerate} onCopied={() => dispatch({ type: "feedback", status: "已复制" })} />)}</div>
+      <div className={styles.messages}>{state.messages.map((message) => <MessageItem key={message.id} message={message} busy={busy} onRegenerate={regenerate} />)}</div>
       {state.error && <div className={styles.error} role="alert"><CircleAlert size={16} /><span>{state.error}</span>{state.messages.some((message) => message.role === "user") && <button onClick={retry}>重试</button>}</div>}
     </main>
     <footer className={styles.composerDock}>{state.source && <nav className={styles.quickActions} aria-label="快捷操作">
       <button disabled={busy} onClick={() => void submit(QUICK_ACTIONS.explain)}><Lightbulb size={15} />解释</button>
       <button disabled={busy} onClick={() => void submit(QUICK_ACTIONS.summarize)}><BookOpenText size={15} />总结</button>
       <button disabled={busy} onClick={() => void submit(QUICK_ACTIONS.translate)}><Languages size={15} />翻译</button>
-    </nav>}<div className={styles.composer}>
+    </nav>}<div className={styles.composerSurface}><div className={styles.composer}>
       <textarea ref={inputRef} rows={1} maxLength={4000} placeholder="输入问题，或询问当前页面…" value={state.input}
         onChange={(event) => dispatch({ type: "input", value: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void submit(state.input); } }} />
-      <button className={styles.sendButton} type="button" aria-label={busy ? "停止生成" : "发送"} title={busy ? "停止生成" : "发送"} disabled={!busy && !state.input.trim()}
-        onClick={() => { if (busy) stop(); else submit(state.input); }}>{busy ? <Square size={16} /> : <Send size={17} />}</button>
-    </div><div className={styles.composerMeta}><ModelPicker providerName={providerInfo.name} model={providerInfo.model} models={providerInfo.models} disabled={!providerInfo.valid || providerInfo.models.length === 0 || state.modelSwitching || busy} onChange={(model) => void changeModel(model)} /><span className={styles.composerStatus} role="status">{state.request.status === "streaming" ? `${state.request.providerName}正在回答` : state.request.status === "preparing" ? "正在准备请求" : state.status}</span><span className={styles.characterCount}>{state.input.length} / 4000</span></div></footer>
+    </div><div className={styles.composerMeta}><ModelPicker providerName={providerInfo.name} model={providerInfo.model} models={providerInfo.models} disabled={!providerInfo.valid || providerInfo.models.length === 0 || state.modelSwitching || busy} onChange={(model) => void changeModel(model)} /><span className={styles.characterCount}>{state.input.length} / 4000</span><button className={styles.sendButton} type="button" aria-label={busy ? "停止生成" : "发送"} title={busy ? "停止生成" : "发送"} disabled={!busy && !state.input.trim()}
+        onClick={() => { if (busy) stop(); else submit(state.input); }}>{busy ? <Square size={16} /> : <Send size={17} />}</button></div></div></footer>
   </div>;
 }

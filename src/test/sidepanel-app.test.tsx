@@ -106,7 +106,7 @@ it("locks duplicate submits and allows stopping while preparing", async () => {
   settingsRequest.resolve(configuredSettings());
 
   await waitFor(() => expect(screen.getByRole("button", { name: "发送" })).toBeInTheDocument());
-  expect(screen.getByRole("status")).toHaveTextContent("已停止生成");
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
   expect(mocks.streamChat).not.toHaveBeenCalled();
   expect(screen.getAllByText("question")).toHaveLength(1);
 });
@@ -143,7 +143,7 @@ it("keeps a partial reply when the user stops streaming", async () => {
 
   await waitFor(() => expect(screen.getByRole("button", { name: "发送" })).toBeInTheDocument());
   expect(screen.getByText("partial answer")).toBeInTheDocument();
-  expect(screen.getByRole("status")).toHaveTextContent("已停止生成");
+  expect(screen.queryByRole("status")).not.toBeInTheDocument();
   expect(mocks.saveConversationSession).toHaveBeenLastCalledWith(expect.objectContaining({ messages: expect.arrayContaining([expect.objectContaining({ role: "assistant", content: "partial answer" })]) }));
 });
 
@@ -218,10 +218,14 @@ it("keeps quick actions inside the composer dock, above the input", async () => 
   const input = await renderInitialized();
   const dock = input.closest("footer");
   expect(dock).not.toBeNull();
-  expect(dock!.children).toHaveLength(3);
+  expect(dock!.children).toHaveLength(2);
   const actions = within(dock!).getByRole("navigation", { name: "快捷操作" });
   expect(actions).toHaveTextContent("解释");
   expect(actions.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  const surface = input.parentElement?.parentElement;
+  expect(surface?.parentElement).toBe(dock);
+  expect(surface?.querySelector("[role=status]")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "发送" }).parentElement).toBe(surface?.lastElementChild);
 });
 
 it("leaves no empty dock row when quick actions are hidden", async () => {
@@ -229,7 +233,7 @@ it("leaves no empty dock row when quick actions are hidden", async () => {
   const input = await renderInitialized(null);
   const dock = input.closest("footer");
   expect(dock).not.toBeNull();
-  expect(dock!.children).toHaveLength(2);
+  expect(dock!.children).toHaveLength(1);
 });
 
 it("grows the input with its content up to the maximum height", async () => {

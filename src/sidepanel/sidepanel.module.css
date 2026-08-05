@@ -18,7 +18,7 @@
 .source > a { display: block; margin: 3px 0 4px; overflow: hidden; color: var(--text-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .source > p { display: -webkit-box; margin: 0; overflow: hidden; color: var(--text-muted); font-size: 12px; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: pre-wrap; }
 .sourceExpanded > p { display: block; overflow: visible; }
-.quickActions { display: flex; flex: none; gap: 5px; width: fit-content; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); box-shadow: var(--shadow); }
+.quickActions { display: flex; flex: none; gap: 5px; width: fit-content; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-raised); box-shadow: var(--shadow); }
 .quickActions button { display: flex; align-items: center; gap: 4px; min-width: 0; height: 24px; padding: 0 9px; border: 0; border-radius: 999px; background: transparent; color: var(--text-muted); font-size: 12px; }
 .quickActions button:hover:not(:disabled) { background: var(--surface-muted); color: var(--text); }
 .content { grid-row: 4; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
@@ -52,29 +52,36 @@
 .tableWrap th { background: var(--surface-muted); }
 .error { display: flex; align-items: center; gap: 7px; margin: 0 11px 12px; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border)); border-radius: var(--radius-sm); background: var(--danger-soft); color: var(--danger); font-size: 12px; }
 .error span { flex: 1; }
-/* 输入区用 flex 列而非固定行数网格：快捷操作栏为条件渲染，缺失时其余子元素自然上移，底部不会残留空行 */
-.composerDock { grid-row: 5; display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 6px; border-top: 1px solid var(--border); background: var(--surface); }
-.composer { display: grid; flex: none; grid-template-columns: minmax(0, 1fr) 36px; align-items: center; gap: 6px; padding: 5px 5px 5px 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-raised); }
-.composer:focus-within { border-color: var(--accent-hover); box-shadow: var(--focus-ring); }
+/* 输入区用 flex 列而非固定行数网格：快捷操作栏和输入卡片都悬浮在消息区上方 */
+.composerDock { grid-row: 5; display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 10px; border-top: 0; background: transparent; }
+.composerSurface { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 6px 8px 5px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-raised); box-shadow: var(--shadow); }
+.composerSurface:focus-within { border-color: var(--accent-hover); box-shadow: var(--shadow), var(--focus-ring); }
+.composer { display: block; flex: none; padding: 5px 5px 3px 10px; border: 0; background: transparent; }
 .composer textarea { width: 100%; min-height: 30px; resize: none; overflow-y: auto; scrollbar-width: none; border: 0; outline: 0; background: transparent; line-height: 20px; padding: 6px 0 4px; }
+.composer textarea:focus-visible { box-shadow: none; }
 .composer textarea::-webkit-scrollbar { display: none; }
-.sendButton { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-sm); background: var(--accent); color: #113d35; }
-.composerMeta { display: grid; flex: none; height: 26px; grid-template-columns: minmax(88px, 1fr) minmax(0, auto) auto; align-items: center; gap: 8px; min-width: 0; color: var(--text-muted); font-size: 10px; }
-.composerStatus { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sendButton { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: 50%; background: var(--surface-raised); color: var(--accent-ink); transform: translateY(-2px); }
+.sendButton:hover:not(:disabled) { background: var(--surface-muted); }
+.composerMeta { display: grid; flex: none; height: 32px; grid-template-columns: minmax(88px, 1fr) auto 32px; align-items: center; gap: 8px; min-width: 0; color: var(--text-muted); font-size: 10px; }
 .characterCount { white-space: nowrap; }
 .modelPicker { position: relative; min-width: 0; }
-.modelButton { display: grid; grid-template-columns: 7px auto minmax(0, 1fr) 14px; align-items: center; gap: 5px; width: 100%; min-width: 0; height: 24px; padding: 0 3px; border: 0; background: transparent; text-align: left; }
-.modelDot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-hover); }
-.modelProvider { max-width: 72px; overflow: hidden; color: var(--text); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.modelName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.modelMenu { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 20; width: min(300px, calc(100vw - 20px)); max-height: 240px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-raised); box-shadow: var(--shadow); }
-.modelMenu button { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 31px; padding: 5px 7px; border: 0; border-radius: var(--radius-sm); background: transparent; text-align: left; overflow-wrap: anywhere; }
+.modelButton { display: flex; align-items: center; gap: 5px; width: 100%; min-width: 0; height: 24px; padding: 0 3px; border: 0; background: transparent; text-align: left; }
+.modelButton > svg { flex: none; }
+.modelDot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent-hover); }
+.modelProvider { flex: none; max-width: 72px; overflow: hidden; color: var(--text); font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.modelName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes modelMenuEnter {
+  from { opacity: 0; transform: translateY(5px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modelMenu { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 20; width: max-content; min-width: 150px; max-width: min(300px, calc(100vw - 20px)); max-height: 240px; overflow-y: auto; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-raised); box-shadow: var(--shadow); transform-origin: bottom left; animation: modelMenuEnter .16s ease-out both; }
+.modelMenu button { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-width: 0; min-height: 31px; padding: 5px 7px; border: 0; border-radius: var(--radius-sm); background: transparent; text-align: left; overflow-wrap: anywhere; }
 .modelMenu button:hover, .modelMenu button:focus-visible { background: var(--surface-muted); }
 .hiddenCheck { visibility: hidden; }
 
 @media (max-width: 340px) {
   .characterCount { display: none; }
-  .composerMeta { grid-template-columns: minmax(88px, 1fr) minmax(0, auto); }
+  .composerMeta { grid-template-columns: minmax(88px, 1fr) 32px; }
   .modelProvider { max-width: 48px; }
 }
 

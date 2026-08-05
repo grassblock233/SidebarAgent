@@ -9,7 +9,6 @@ export interface SidePanelState {
   input: string;
   request: RequestState;
   capture: CaptureState;
-  status: string;
   error: string;
   modelSwitching: boolean;
 }
@@ -22,7 +21,6 @@ export const initialState: SidePanelState = {
   input: "",
   request: { status: "idle" },
   capture: { status: "idle" },
-  status: "",
   error: "",
   modelSwitching: false
 };
@@ -38,14 +36,14 @@ export type SidePanelAction =
   | { type: "append-delta"; id: string; delta: string }
   | { type: "request"; request: RequestState }
   | { type: "capture"; capture: CaptureState }
-  | { type: "feedback"; status?: string; error?: string }
+  | { type: "feedback"; error?: string }
   | { type: "model-switching"; value: boolean };
 
 export function sidePanelReducer(state: SidePanelState, action: SidePanelAction): SidePanelState {
   switch (action.type) {
     case "initialize": return { ...state, source: action.source, messages: action.messages, settings: action.settings };
     case "settings": return { ...state, settings: action.settings };
-    case "source": return { ...state, source: action.source, messages: [], sourceExpanded: false, input: "", error: "", status: "" };
+    case "source": return { ...state, source: action.source, messages: [], sourceExpanded: false, input: "", error: "" };
     case "clear": return { ...initialState, settings: state.settings };
     case "toggle-source": return { ...state, sourceExpanded: !state.sourceExpanded };
     case "input": return { ...state, input: action.value };
@@ -53,7 +51,7 @@ export function sidePanelReducer(state: SidePanelState, action: SidePanelAction)
     case "append-delta": return { ...state, messages: state.messages.map((message) => message.id === action.id ? { ...message, content: message.content + action.delta } : message) };
     case "request": return { ...state, request: action.request };
     case "capture": return { ...state, capture: action.capture };
-    case "feedback": return { ...state, status: action.status ?? "", error: action.error ?? "" };
+    case "feedback": return { ...state, error: action.error ?? "" };
     case "model-switching": return { ...state, modelSwitching: action.value };
   }
 }
