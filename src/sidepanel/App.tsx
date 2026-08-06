@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
-import { BookOpenText, Bot, CircleAlert, FileSearch, Languages, Lightbulb, Send, Settings, Square, Trash2 } from "lucide-react";
+import { BookOpenText, CircleAlert, FileSearch, Languages, Lightbulb, Send, Settings, Square, Trash2 } from "lucide-react";
 import { getActiveTab, openOptionsPage, requestOriginPermission, requestVisibleText } from "../shared/chrome-api";
 import { MAX_CONTEXT_CHARS, PENDING_SELECTION_KEY, QUICK_ACTIONS, REQUEST_TIMEOUT_MS, SETTINGS_KEY, SYSTEM_PROMPT } from "../shared/constants";
 import { ProviderError, streamChat } from "../shared/openai-client";
@@ -290,7 +290,7 @@ export default function App() {
       {safeSourceUrl(state.source.url) && <a href={safeSourceUrl(state.source.url)} target="_blank" rel="noreferrer">{state.source.title}</a>}<p ref={sourceTextRef}>{state.source.text}</p>
     </section>}
     <main ref={contentRef} className={styles.content} onScroll={() => { const element = contentRef.current; if (element) followOutputRef.current = element.scrollHeight - element.scrollTop - element.clientHeight <= AUTO_FOLLOW_THRESHOLD_PX; }}>
-      {!state.source && !state.messages.length && <div className={styles.empty}><Bot size={36} /><h1>直接提问，或读取页面</h1><p>可以直接开始对话，也可以选中文字或读取当前视口内的网页文字后继续追问。</p><button onClick={() => void capture()}><FileSearch size={16} />读取当前页面</button></div>}
+      {!state.source && !state.messages.length && <div className={styles.empty}><img src="/assets/icon-128.png" alt="" /><h1>直接提问，或读取页面</h1><p>可以直接开始对话，也可以选中文字或读取当前视口内的网页文字后继续追问。</p><button onClick={() => void capture()}><FileSearch size={16} />读取当前页面</button></div>}
       <div className={styles.messages}>{state.messages.map((message) => <MessageItem key={message.id} message={message} busy={busy} onRegenerate={regenerate} />)}</div>
       {state.error && <div className={styles.error} role="alert"><CircleAlert size={16} /><span>{state.error}</span>{state.messages.some((message) => message.role === "user") && <button onClick={retry}>重试</button>}</div>}
     </main>
