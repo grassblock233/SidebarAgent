@@ -214,26 +214,17 @@ it("follows streamed output only while the reader stays near the bottom", async 
   streamFinished.resolve();
 });
 
-it("keeps quick actions inside the composer dock, above the input", async () => {
+it("keeps the toolbar, page context, and quick actions above the input", async () => {
   const input = await renderInitialized();
   const dock = input.closest("footer");
   expect(dock).not.toBeNull();
-  expect(dock!.children).toHaveLength(2);
+  expect(within(dock!).getByRole("region", { name: "当前网页上下文" })).toHaveTextContent("page text");
   const actions = within(dock!).getByRole("navigation", { name: "快捷操作" });
   expect(actions).toHaveTextContent("解释");
+  expect(within(dock!).getByRole("button", { name: "读取当前页面" })).toBeInTheDocument();
+  expect(within(dock!).getByRole("button", { name: "清空对话" })).toBeInTheDocument();
+  expect(within(dock!).getByRole("button", { name: "打开设置" })).toBeInTheDocument();
   expect(actions.compareDocumentPosition(input) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  const surface = input.parentElement?.parentElement;
-  expect(surface?.parentElement).toBe(dock);
-  expect(surface?.querySelector("[role=status]")).not.toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "发送" }).parentElement).toBe(surface?.lastElementChild);
-});
-
-it("leaves no empty dock row when quick actions are hidden", async () => {
-  mocks.getConversationSession.mockResolvedValueOnce(null);
-  const input = await renderInitialized(null);
-  const dock = input.closest("footer");
-  expect(dock).not.toBeNull();
-  expect(dock!.children).toHaveLength(1);
 });
 
 it("grows the input with its content up to the maximum height", async () => {

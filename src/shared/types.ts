@@ -52,11 +52,21 @@ export interface SourceContext {
 
 export type MessageRole = "user" | "assistant";
 
+export interface PageContextSnapshot {
+  text: string;
+  title: string;
+  url: string;
+  contentType: "text/plain" | "text/html";
+  captureType?: "selection" | "viewport";
+  truncated: boolean;
+}
+
 export interface ConversationMessage {
   id: string;
   role: MessageRole;
   content: string;
   providerName?: string;
+  pageContext?: PageContextSnapshot;
 }
 
 export interface ConversationSession {

@@ -1,8 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import fs from "node:fs";
-import { MarkdownMessage, ModelPicker } from "../sidepanel/components";
+import { MarkdownMessage, MessageItem, ModelPicker } from "../sidepanel/components";
 import { initialState, sidePanelReducer } from "../sidepanel/state";
 import { initialOptionsState, optionsReducer } from "../options/state";
 import { createEmptySettings } from "../shared/storage";
@@ -57,54 +56,42 @@ it("closes the model menu when the picker becomes disabled", async () => {
   await waitFor(() => expect(screen.queryByRole("listbox")).not.toBeInTheDocument());
 });
 
-it("pins conditional side panel regions to stable grid rows", () => {
-  const css = fs.readFileSync("src/sidepanel/sidepanel.module.css", "utf8");
-  expect(css).toMatch(/grid-template-rows:\s*46px auto auto minmax\(0, 1fr\) auto/);
-  expect(css).toMatch(/\.content\s*\{[^}]*grid-row:\s*4/);
-  expect(css).toMatch(/\.composerDock\s*\{[^}]*grid-row:\s*5/);
+it("shows one page-text body, removes a duplicated title line, and toggles expansion", async () => {
+  const text = "Article title\nFirst line\nSecond line\nThird line\nFourth line";
+  render(<MessageItem message={{ id: "user-1", role: "user", content: "Summarize", pageContext: { text, title: "Article title", url: "https://example.com/article", contentType: "text/plain", captureType: "viewport", truncated: false } }} busy={false} onRegenerate={vi.fn()} />);
+
+  const toggle = screen.getByRole("button", { name: /页面文字.*Article title/ });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(screen.getAllByText("Article title")).toHaveLength(1);
+  expect(screen.getByText(/First line/)).toBeInTheDocument();
+
+  await userEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByText(/Fourth line/)).toBeInTheDocument();
+  expect(screen.getAllByText("Article title")).toHaveLength(1);
 });
 
-it("hides the composer scrollbar while keeping the input scrollable and multi-line friendly", () => {
-  const css = fs.readFileSync("src/sidepanel/sidepanel.module.css", "utf8");
-  expect(css).toMatch(/\.composer textarea\s*\{[^}]*overflow-y:\s*auto[^}]*scrollbar-width:\s*none/);
-  expect(css).toMatch(/\.composer textarea::-webkit-scrollbar\s*\{[^}]*display:\s*none/);
-  expect(css).toMatch(/\.composer textarea:focus-visible\s*\{[^}]*box-shadow:\s*none/);
+it("keeps non-matching title text and rejects unsafe page links", () => {
+  render(<MessageItem message={{ id: "user-2", role: "user", content: "Question", pageContext: { text: "Different first line\nBody", title: "Article title", url: "javascript:alert(1)", contentType: "text/plain", truncated: false } }} busy={false} onRegenerate={vi.fn()} />);
+  expect(screen.getByText(/Different first line/)).toBeInTheDocument();
+  expect(screen.queryByRole("link", { name: /打开来源页面/ })).not.toBeInTheDocument();
 });
 
-it("styles quick actions as a floating rounded pill docked above the input", () => {
-  const css = fs.readFileSync("src/sidepanel/sidepanel.module.css", "utf8");
-  expect(css).toMatch(/\.quickActions\s*\{[^}]*border-radius:\s*999px[^}]*box-shadow:\s*var\(--shadow\)/);
-  expect(css).toMatch(/\.quickActions\s*\{[^}]*background:\s*var\(--surface-raised\)/);
+it("marks only newly streamed Markdown text for fading", () => {
+  const { container } = render(<MarkdownMessage content="已完成，**新内容**" animateFrom={4} />);
+
+  expect(container).toHaveTextContent("已完成，新内容");
+  expect(container.querySelector("table")).not.toBeInTheDocument();
+  const fadingText = container.querySelector('[class*="streamingDelta"]');
+  expect(fadingText).toHaveTextContent("新内容");
+  expect(fadingText?.parentElement).toHaveTextContent("新内容");
+  expect(container.querySelector("p")?.firstChild).toHaveTextContent("已完成，");
 });
 
-it("styles the composer as an inset floating card", () => {
-  const css = fs.readFileSync("src/sidepanel/sidepanel.module.css", "utf8");
-  expect(css).toMatch(/\.composerDock\s*\{[^}]*border-top:\s*0[^}]*background:\s*transparent/);
-  expect(css).toMatch(/\.composerSurface\s*\{[^}]*border:\s*1px solid var\(--border\)[^}]*border-radius:\s*16px[^}]*background:\s*var\(--surface-raised\)[^}]*box-shadow:\s*var\(--shadow\)/);
-  expect(css).toMatch(/\.composerSurface:focus-within\s*\{[^}]*border-color:\s*var\(--accent-hover\)[^}]*box-shadow:\s*var\(--shadow\),\s*var\(--focus-ring\)/);
-  expect(css).toMatch(/\.composer\s*\{[^}]*border:\s*0[^}]*background:\s*transparent/);
-  expect(css).not.toMatch(/\.composerDock\.hasQuickActions/);
-});
+it("keeps GFM table rendering while marking a streamed cell", () => {
+  const content = "| A | B |\n|---|---|\n| 1 | 2 |";
+  const { container } = render(<MarkdownMessage content={content} animateFrom={content.lastIndexOf("2")} />);
 
-it("collapses the composer dock to actual content when quick actions are absent", () => {
-  const css = fs.readFileSync("src/sidepanel/sidepanel.module.css", "utf8");
-  expect(css).toMatch(/\.composerDock\s*\{[^}]*display:\s*flex[^}]*flex-direction:\s*column/);
-  expect(css).toMatch(/\.composerMeta\s*\{[^}]*height:\s*32px[^}]*grid-template-columns:\s*minmax\(88px,\s*1fr\)\s+auto\s+32px/);
-});
-
-it("places the send button as a compact themed circular control in the composer meta row", () => {
-  const css = fs.readFileSync("src/sidepanel/sidepanel.module.css", "utf8");
-  expect(css).toMatch(/\.sendButton\s*\{[^}]*width:\s*32px[^}]*height:\s*32px[^}]*border-radius:\s*50%[^}]*background:\s*var\(--surface-raised\)[^}]*color:\s*var\(--accent-ink\)[^}]*transform:\s*translateY\(-2px\)/);
-  expect(css).toMatch(/\.sendButton:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--surface-muted\)/);
-});
-
-it("keeps the model arrow beside the model name and animates the menu upward", () => {
-  const css = fs.readFileSync("src/sidepanel/sidepanel.module.css", "utf8");
-  expect(css).toMatch(/\.modelButton\s*\{[^}]*display:\s*flex[^}]*gap:\s*5px/);
-  expect(css).toMatch(/\.modelButton\s*>\s*svg\s*\{[^}]*flex:\s*none/);
-  expect(css).toMatch(/\.modelName\s*\{[^}]*min-width:\s*0[^}]*overflow:\s*hidden/);
-  expect(css).toMatch(/@keyframes\s+modelMenuEnter\s*\{[^}]*translateY\(5px\)\s+scale\(\.98\)[^}]*}/);
-  expect(css).toMatch(/\.modelMenu\s*\{[^}]*transform-origin:\s*bottom left[^}]*animation:\s*modelMenuEnter\s+\.16s\s+ease-out\s+both/);
-  expect(css).toMatch(/\.modelMenu\s*\{[^}]*width:\s*max-content[^}]*min-width:\s*150px[^}]*max-width:\s*min\(300px,\s*calc\(100vw - 20px\)\)/);
-  expect(css).toMatch(/\.modelMenu button\s*\{[^}]*width:\s*100%[^}]*min-width:\s*0/);
+  expect(container.querySelector("table")).toBeInTheDocument();
+  expect(container.querySelector('[class*="streamingDelta"]')).toHaveTextContent("2");
 });

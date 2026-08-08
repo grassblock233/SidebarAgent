@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
-import { BookOpenText, CircleAlert, FileSearch, Languages, Lightbulb, Send, Settings, Square, Trash2 } from "lucide-react";
+import { BookOpenText, CircleAlert, ExternalLink, FileSearch, FileText, Languages, Lightbulb, Send, Settings, Square, Trash2 } from "lucide-react";
 import { getActiveTab, openOptionsPage, requestOriginPermission, requestVisibleText } from "../shared/chrome-api";
 import { MAX_CONTEXT_CHARS, PENDING_SELECTION_KEY, QUICK_ACTIONS, REQUEST_TIMEOUT_MS, SETTINGS_KEY, SYSTEM_PROMPT } from "../shared/constants";
 import { ProviderError, streamChat } from "../shared/openai-client";
 import { resolveProvider } from "../shared/providers";
 import { clearConversationSession, getConversationSession, getEffectiveModel, getPendingSelection, getSettings, isProviderConfigurationValid, normalizeSettings, saveConversationSession, saveSettings, selectAvailableModel } from "../shared/storage";
-import type { ChatMessage, ConversationMessage, ConversationSession, SourceContext } from "../shared/types";
+import type { ChatMessage, ConversationMessage, ConversationSession, PageContextSnapshot, SourceContext } from "../shared/types";
 import { IconButton, MessageItem, ModelPicker } from "./components";
 import { initialState, sidePanelReducer } from "./state";
 import styles from "./sidepanel.module.css";
@@ -227,7 +227,15 @@ export default function App() {
     const current = stateRef.current;
     const content = text.trim();
     if (!content || abortRef.current) return;
-    const messages = [...current.messages, { id: id(), role: "user", content } satisfies ConversationMessage];
+    const pageContext: PageContextSnapshot | undefined = current.source ? {
+      text: current.source.text,
+      title: current.source.title,
+      url: current.source.url,
+      contentType: current.source.contentType,
+      captureType: current.source.captureType,
+      truncated: current.source.truncated
+    } : undefined;
+    const messages = [...current.messages, { id: id(), role: "user", content, pageContext } satisfies ConversationMessage];
     dispatch({ type: "messages", messages });
     dispatch({ type: "input", value: "" });
     dispatch({ type: "feedback" });
@@ -274,31 +282,45 @@ export default function App() {
     finally { dispatch({ type: "model-switching", value: false }); }
   };
   const busy = state.request.status !== "idle";
+  const streamingMessageId = state.request.status === "streaming" ? state.request.requestId : undefined;
   const regenerate = () => { const messages = stateRef.current.messages; if (messages.at(-1)?.role !== "assistant") return; const next = messages.slice(0, -1); dispatch({ type: "messages", messages: next }); void runReply(next); };
   const retry = () => { const messages = stateRef.current.messages; const next = messages.at(-1)?.role === "assistant" ? messages.slice(0, -1) : messages; dispatch({ type: "messages", messages: next }); void runReply(next); };
   const stop = () => { if (abortRef.current) { abortRef.current.reason = "user"; abortRef.current.controller.abort(); } };
 
   return <div className={styles.shell}>
-    <header className={styles.header}><div className={styles.brand}><img src="/assets/icon-32.png" alt="" /><span>SidebarAgent</span></div><div className={styles.headerActions}>
-      <IconButton label="读取当前页面" onClick={() => void capture()} disabled={state.capture.status !== "idle" || busy}><FileSearch size={17} /></IconButton>
-      <IconButton label="清空对话" onClick={() => void clear()} disabled={!state.source && !state.messages.length}><Trash2 size={17} /></IconButton>
-      <IconButton label="打开设置" onClick={() => void openOptionsPage()}><Settings size={17} /></IconButton>
-    </div></header>
-    {!providerInfo.valid && <div className={styles.notice}><CircleAlert size={16} /><span>尚未配置 AI 提供商</span><button onClick={() => void openOptionsPage()}>前往设置</button></div>}
-    {state.source && <section className={`${styles.source} ${state.sourceExpanded ? styles.sourceExpanded : ""}`} aria-label="当前网页上下文">
-      <div className={styles.sourceHeader}><div><strong>{state.source.captureType === "viewport" ? "页面文字" : "选中文本"}</strong><span>{state.source.originalLength.toLocaleString("zh-CN")} 字</span></div>{(state.sourceExpanded || sourceOverflowing) && <button type="button" onClick={() => dispatch({ type: "toggle-source" })} aria-expanded={state.sourceExpanded}>{state.sourceExpanded ? "收起" : "展开"}</button>}</div>
-      {safeSourceUrl(state.source.url) && <a href={safeSourceUrl(state.source.url)} target="_blank" rel="noreferrer">{state.source.title}</a>}<p ref={sourceTextRef}>{state.source.text}</p>
-    </section>}
     <main ref={contentRef} className={styles.content} onScroll={() => { const element = contentRef.current; if (element) followOutputRef.current = element.scrollHeight - element.scrollTop - element.clientHeight <= AUTO_FOLLOW_THRESHOLD_PX; }}>
       {!state.source && !state.messages.length && <div className={styles.empty}><img src="/assets/icon-128.png" alt="" /><h1>直接提问，或读取页面</h1><p>可以直接开始对话，也可以选中文字或读取当前视口内的网页文字后继续追问。</p><button onClick={() => void capture()}><FileSearch size={16} />读取当前页面</button></div>}
-      <div className={styles.messages}>{state.messages.map((message) => <MessageItem key={message.id} message={message} busy={busy} onRegenerate={regenerate} />)}</div>
+      {state.messages.length > 0 && <div className={styles.messages}>{state.messages.map((message) => <MessageItem key={message.id} message={message} busy={busy} streaming={message.id === streamingMessageId} onRegenerate={regenerate} />)}</div>}
       {state.error && <div className={styles.error} role="alert"><CircleAlert size={16} /><span>{state.error}</span>{state.messages.some((message) => message.role === "user") && <button onClick={retry}>重试</button>}</div>}
     </main>
-    <footer className={styles.composerDock}>{state.source && <nav className={styles.quickActions} aria-label="快捷操作">
-      <button disabled={busy} onClick={() => void submit(QUICK_ACTIONS.explain)}><Lightbulb size={15} />解释</button>
-      <button disabled={busy} onClick={() => void submit(QUICK_ACTIONS.summarize)}><BookOpenText size={15} />总结</button>
-      <button disabled={busy} onClick={() => void submit(QUICK_ACTIONS.translate)}><Languages size={15} />翻译</button>
-    </nav>}<div className={styles.composerSurface}><div className={styles.composer}>
+    <footer className={styles.composerDock}>
+      <div className={styles.composerToolbar}>
+        {state.source && <nav key={state.source.id} className={styles.quickActions} aria-label="快捷操作">
+          <button disabled={busy} onClick={() => void submit(QUICK_ACTIONS.explain)}><Lightbulb size={15} />解释</button>
+          <button disabled={busy} onClick={() => void submit(QUICK_ACTIONS.summarize)}><BookOpenText size={15} />总结</button>
+          <button disabled={busy} onClick={() => void submit(QUICK_ACTIONS.translate)}><Languages size={15} />翻译</button>
+        </nav>}
+        <div className={styles.headerActions}>
+          <IconButton label="读取当前页面" onClick={() => void capture()} disabled={state.capture.status !== "idle" || busy}><FileSearch size={17} /></IconButton>
+          <IconButton label="清空对话" onClick={() => void clear()} disabled={!state.source && !state.messages.length}><Trash2 size={17} /></IconButton>
+          <IconButton label="打开设置" onClick={() => void openOptionsPage()}><Settings size={17} /></IconButton>
+        </div>
+      </div>
+      {!providerInfo.valid && <div className={styles.notice}><CircleAlert size={16} /><span>尚未配置 AI 提供商</span><button onClick={() => void openOptionsPage()}>前往设置</button></div>}
+      {state.source && <section key={state.source.id} className={`${styles.source} ${state.sourceExpanded ? styles.sourceExpanded : ""}`} aria-label="当前网页上下文">
+        <div className={styles.sourceHeader}>
+          <div className={styles.sourceMeta}>
+            <span className={styles.sourceKind}><FileText size={14} />{state.source.captureType === "viewport" ? "页面文字" : "选中文本"}</span>
+            <span className={styles.sourceLength}>{state.source.originalLength.toLocaleString("zh-CN")} 字</span>
+          </div>
+          {(state.sourceExpanded || sourceOverflowing) && <button className={styles.sourceToggle} type="button" onClick={() => dispatch({ type: "toggle-source" })} aria-expanded={state.sourceExpanded}>{state.sourceExpanded ? "收起" : "展开"}</button>}
+        </div>
+        <div className={styles.sourceTitleRow}>
+          {safeSourceUrl(state.source.url) ? <a className={styles.sourceTitle} href={safeSourceUrl(state.source.url)} target="_blank" rel="noreferrer" title={state.source.title}>{state.source.title || "未命名页面"}<ExternalLink size={13} /></a> : <span className={styles.sourceTitle}>{state.source.title || "未命名页面"}</span>}
+        </div>
+        <p className={styles.sourceText} ref={sourceTextRef}>{state.source.text}</p>
+      </section>}
+      <div className={styles.composerSurface}><div className={styles.composer}>
       <textarea ref={inputRef} rows={1} maxLength={4000} placeholder="输入问题，或询问当前页面…" value={state.input}
         onChange={(event) => dispatch({ type: "input", value: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void submit(state.input); } }} />
     </div><div className={styles.composerMeta}><ModelPicker providerName={providerInfo.name} model={providerInfo.model} models={providerInfo.models} disabled={!providerInfo.valid || providerInfo.models.length === 0 || state.modelSwitching || busy} onChange={(model) => void changeModel(model)} /><span className={styles.characterCount}>{state.input.length} / 4000</span><button className={styles.sendButton} type="button" aria-label={busy ? "停止生成" : "发送"} title={busy ? "停止生成" : "发送"} disabled={!busy && !state.input.trim()}

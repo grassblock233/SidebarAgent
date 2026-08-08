@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Check, ChevronDown, Copy, RefreshCw } from "lucide-react";
+import { Check, ChevronDown, Copy, ExternalLink, RefreshCw } from "lucide-react";
 import type { ConversationMessage } from "../shared/types";
 import styles from "./sidepanel.module.css";
 
@@ -13,10 +13,51 @@ function safeUrl(url: string): string | undefined {
   try { return ["http:", "https:"].includes(new URL(url).protocol) ? url : undefined; } catch { return undefined; }
 }
 
-export function MarkdownMessage({ content }: { content: string }) {
+function displayPageText(text: string, title: string): string {
+  const lines = text.split("\\n");
+  if (lines.length && lines[0].trim() === title.trim() && title.trim()) return lines.slice(1).join("\\n").replace(/^\\n+/, "");
+  return text;
+}
+
+interface MarkdownNode {
+  type: string;
+  value?: string;
+  children?: MarkdownNode[];
+  position?: { start?: { offset?: number }; end?: { offset?: number } };
+  data?: Record<string, unknown>;
+}
+
+function streamingDeltaPlugin(animateFrom: number) {
+  return () => (tree: MarkdownNode) => {
+    const visit = (node: MarkdownNode) => {
+      if (!node.children) return;
+      node.children = node.children.flatMap((child) => {
+        if (child.type !== "text" || typeof child.value !== "string") {
+          visit(child);
+          return [child];
+        }
+        const start = child.position?.start?.offset;
+        const end = child.position?.end?.offset;
+        if (start === undefined || end === undefined || end <= animateFrom) return [child];
+        const wrap = (value: string): MarkdownNode => ({
+          type: "strong",
+          children: [{ type: "text", value }],
+          data: { hName: "span", hProperties: { className: [styles.streamingDelta] } }
+        });
+        if (start >= animateFrom) return [wrap(child.value)];
+        const splitAt = Math.max(0, Math.min(child.value.length, animateFrom - start));
+        return splitAt === 0 ? [wrap(child.value)] : [{ ...child, value: child.value.slice(0, splitAt) }, wrap(child.value.slice(splitAt))];
+      });
+    };
+    visit(tree);
+  };
+}
+
+export function MarkdownMessage({ content, animateFrom }: { content: string; animateFrom?: number }) {
+  const previousLength = animateFrom ?? content.length;
   return (
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
+      remarkPlugins={[remarkGfm, ...(animateFrom === undefined ? [] : [streamingDeltaPlugin(previousLength)])]}
       components={{
         a: ({ href, children }) => {
           const safeHref = href ? safeUrl(href) : undefined;
@@ -28,8 +69,16 @@ export function MarkdownMessage({ content }: { content: string }) {
   );
 }
 
-export function MessageItem({ message, busy, onRegenerate }: { message: ConversationMessage; busy: boolean; onRegenerate: () => void }) {
+export function MessageItem({ message, busy, streaming = false, onRegenerate }: { message: ConversationMessage; busy: boolean; streaming?: boolean; onRegenerate: () => void }) {
   const copy = async () => { await navigator.clipboard.writeText(message.content); };
+  const pageContext = message.role === "user" ? message.pageContext : undefined;
+  const pageLabel = pageContext?.captureType === "selection" ? "选中文本" : "页面文字";
+  const pageUrl = pageContext ? safeUrl(pageContext.url) : undefined;
+  const [pageExpanded, setPageExpanded] = useState(false);
+  const previousContentLengthRef = useRef(0);
+  const animateFrom = streaming ? previousContentLengthRef.current : undefined;
+  useEffect(() => { previousContentLengthRef.current = message.content.length; }, [message.content.length]);
+  const displayText = pageContext ? displayPageText(pageContext.text, pageContext.title) : "";
   return (
     <article className={`${styles.message} ${message.role === "user" ? styles.userMessage : styles.assistantMessage}`}>
       <header className={styles.messageHeader}>
@@ -39,7 +88,22 @@ export function MessageItem({ message, busy, onRegenerate }: { message: Conversa
           {message.role === "assistant" && <IconButton label="重新生成" onClick={onRegenerate} disabled={busy}><RefreshCw size={14} /></IconButton>}
         </div>
       </header>
-      <div className={styles.markdown}>{message.role === "assistant" ? <MarkdownMessage content={message.content || "…"} /> : <p>{message.content}</p>}</div>
+      <div className={styles.markdown}>
+        {message.role === "assistant" ? <MarkdownMessage content={message.content || "…"} animateFrom={message.content ? animateFrom : undefined} /> : <>
+          <p>{message.content}</p>
+          {pageContext && <div className={`${styles.pageAttachment} ${pageExpanded ? styles.pageAttachmentExpanded : ""}`}>
+            <button className={styles.pageAttachmentSummary} type="button" aria-expanded={pageExpanded} onClick={() => setPageExpanded((expanded) => !expanded)}>
+              <span className={styles.pageAttachmentHeading}><span className={styles.pageAttachmentLabel}>{pageLabel}</span><span className={styles.pageAttachmentTitle}>{pageContext.title || "未命名页面"}</span></span>
+              <ChevronDown size={14} aria-hidden="true" />
+            </button>
+            <div className={styles.pageAttachmentBody}>
+              <p className={styles.pageAttachmentPreview}>{displayText}</p>
+              {pageContext.truncated && <span className={styles.pageAttachmentNote}>内容已截取</span>}
+              {pageUrl && <a className={styles.pageAttachmentLink} href={pageUrl} target="_blank" rel="noreferrer"><span>打开来源页面</span><ExternalLink size={12} aria-hidden="true" /></a>}
+            </div>
+          </div>}
+        </>}
+      </div>
     </article>
   );
 }
